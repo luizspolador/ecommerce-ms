@@ -7,6 +7,7 @@ import br.com.spolador.ecommerce.order_service.mapper.OrderMapper;
 import br.com.spolador.ecommerce.order_service.model.Order;
 import br.com.spolador.ecommerce.order_service.repository.OrderRepository;
 import br.com.spolador.ecommerce.order_service.service.OrderService;
+import br.com.spolador.ecommerce.order_service.service.client.InventoryClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,7 @@ import java.util.UUID;
 public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
-    private final WebClient.Builder webClientBuilder;
+    private final InventoryClient inventoryClient;
 
     @Override
     @Transactional
@@ -32,15 +33,13 @@ public class OrderServiceImpl implements OrderService {
         for(var item : order.getOrderLineItemList()) {
             String sku = item.getSku();
             Integer quantity = item.getQuantity();
-            Boolean inStock = webClientBuilder.build().get()
-                    .uri("http://localhost:8082/api/v1/inventory/" + sku,
-                            uriBuilder -> uriBuilder.queryParam("quantity", quantity).build())
-                    .retrieve()
-                    .bodyToMono(Boolean.class)
-                    .block();
-            if(!Boolean.TRUE.equals(inStock)){
-                throw new IllegalArgumentException("There is not stock available for product: " + sku);
+            try {
+                inventoryClient.reduceStock(sku, quantity);
+            } catch(Exception ex) {
+                log.error("Error to reduce stock for product {}: {}", sku, ex.getMessage());
+                throw new IllegalArgumentException("The order could not be processed: insufficient stock or inventory error");
             }
+
         }
         order.setOrderNumber(UUID.randomUUID().toString());
         Order createdOrder = orderRepository.save(order);
