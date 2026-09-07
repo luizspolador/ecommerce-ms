@@ -10,6 +10,7 @@ import br.com.spolador.ecommerce.product_service.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -21,6 +22,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductMapper productMapper;
 
     @Override
+    @Transactional
     public ProductResponseDTO createProduct(ProductRequestDTO requestDTO) {
         Product product = productMapper.toProduct(requestDTO);
         Product createdProduct = productRepository.save(product);
@@ -29,11 +31,13 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ProductResponseDTO> getAllProducts() {
         return productRepository.findAll().stream().map(productMapper::toProductResponseDTO).toList();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ProductResponseDTO getProductById(String id) {
         Product product = productRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Product", "id", id)
@@ -42,6 +46,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
     public ProductResponseDTO updateProduct(String id, ProductRequestDTO productRequest) {
         Product product = productRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Product", "id", id)
@@ -53,6 +58,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
     public void deleteProductById(String id) {
         if(!productRepository.existsById(id)){
             throw new ResourceNotFoundException("Product", "id", id);

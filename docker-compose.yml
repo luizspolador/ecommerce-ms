@@ -38,13 +38,3 @@ volumes:
   mongo_data:
   inventory_data:
   order_data:
-#
-#  product-service:
-#    build: .
-#    container_name: product-service
-#    ports:
-#      - "8080:8080"
-#    environment:
-#      - SPRING_DATA_MONGODB_URI=mongodb://root:password@mongodb:27017/product-db?authSource=admin
-#    depends_on:
-#      - mongodb
