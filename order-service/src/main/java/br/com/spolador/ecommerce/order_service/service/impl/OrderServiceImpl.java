@@ -10,9 +10,10 @@ import br.com.spolador.ecommerce.order_service.service.OrderService;
 import br.com.spolador.ecommerce.order_service.service.client.InventoryClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,14 +21,22 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@RefreshScope
 public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
     private final InventoryClient inventoryClient;
 
+    @Value("${order.enabled:true}")
+    private boolean orderEnabled;
+
     @Override
     @Transactional
     public OrderResponseDTO createOrder(OrderRequestDTO orderRequest) {
+        if(!orderEnabled) {
+            log.warn("Order denied. Service disabled by configuration");
+            throw new RuntimeException("The ordering service is under maintenance. Try again in a few minutes");
+        }
         log.info(("Inserting a new order"));
         Order order = orderMapper.toOrder(orderRequest);
         for(var item : order.getOrderLineItemList()) {
