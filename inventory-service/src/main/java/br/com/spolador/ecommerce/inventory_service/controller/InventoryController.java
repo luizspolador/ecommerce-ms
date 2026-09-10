@@ -3,6 +3,7 @@ package br.com.spolador.ecommerce.inventory_service.controller;
 import br.com.spolador.ecommerce.inventory_service.dto.InventoryRequestDTO;
 import br.com.spolador.ecommerce.inventory_service.dto.InventoryResponseDTO;
 import br.com.spolador.ecommerce.inventory_service.service.InventoryService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,7 +31,8 @@ public class InventoryController {
 
     @GetMapping()
     @ResponseStatus(HttpStatus.OK)
-    public List<InventoryResponseDTO> getAllInventories(){
+    public List<InventoryResponseDTO> getAllInventories(HttpServletRequest request){
+        System.out.println("Request from port: " + request.getServerPort());
         return inventoryService.getAllInventories();
     }
 
