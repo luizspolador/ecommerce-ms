@@ -6,8 +6,8 @@ import br.com.spolador.ecommerce.order_service.dto.OrderResponseDTO;
 import java.util.List;
 
 public interface OrderService {
-    OrderResponseDTO createOrder(OrderRequestDTO orderRequest);
-    List<OrderResponseDTO> getAllOrders();
+    OrderResponseDTO createOrder(OrderRequestDTO orderRequest, String userId);
+    List<OrderResponseDTO> getOrders(String userId, boolean isAdmin);
     OrderResponseDTO getOrderById(Long id);
     void deleteOrder(Long id);
 }

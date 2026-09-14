@@ -32,13 +32,14 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderResponseDTO createOrder(OrderRequestDTO orderRequest) {
+    public OrderResponseDTO createOrder(OrderRequestDTO orderRequest, String userId) {
         if(!orderEnabled) {
             log.warn("Order denied. Service disabled by configuration");
             throw new RuntimeException("The ordering service is under maintenance. Try again in a few minutes");
         }
         log.info(("Inserting a new order"));
         Order order = orderMapper.toOrder(orderRequest);
+        order.setUserId(userId);
         for(var item : order.getOrderLineItemList()) {
             String sku = item.getSku();
             Integer quantity = item.getQuantity();
@@ -58,10 +59,15 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponseDTO> getAllOrders() {
-        return orderRepository.findAll().stream()
-                .map(orderMapper::toOrderResponse)
-                .toList();
+    public List<OrderResponseDTO> getOrders(String userId, boolean isAdmin) {
+        List<Order> orders;
+        if(isAdmin) {
+            orders = orderRepository.findAll();
+        } else {
+            orders = orderRepository.findByUserId(userId);
+        }
+        return orders.stream()
+                .map(orderMapper::toOrderResponse).toList();
     }
 
     @Override
