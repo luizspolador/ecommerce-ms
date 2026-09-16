@@ -2,21 +2,21 @@ package br.com.spolador.ecommerce.order_service.service.impl;
 
 import br.com.spolador.ecommerce.order_service.dto.OrderRequestDTO;
 import br.com.spolador.ecommerce.order_service.dto.OrderResponseDTO;
+import br.com.spolador.ecommerce.order_service.event.OrderCreatedEvent;
 import br.com.spolador.ecommerce.order_service.exception.ResourceNotFoundException;
 import br.com.spolador.ecommerce.order_service.mapper.OrderMapper;
 import br.com.spolador.ecommerce.order_service.model.Order;
+import br.com.spolador.ecommerce.order_service.model.OrderLineItems;
 import br.com.spolador.ecommerce.order_service.repository.OrderRepository;
 import br.com.spolador.ecommerce.order_service.service.OrderService;
-import br.com.spolador.ecommerce.order_service.service.client.InventoryClient;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,42 +27,40 @@ import java.util.UUID;
 public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
-    private final InventoryClient inventoryClient;
+    private final RabbitTemplate rabbitTemplate;
 
     @Value("${order.enabled:true}")
     private boolean orderEnabled;
 
     public OrderResponseDTO fallbackMethod(OrderRequestDTO orderRequest, String userId, Throwable throwable) {
         log.error("Circuit breaker activated. Cause: {}", throwable.getMessage());
-        return new OrderResponseDTO(0L, "00000", Collections.emptyList());
+        throw new RuntimeException("The inventory service is not responding, please try again later.");
+
     }
 
     @Override
     @Transactional
-    @CircuitBreaker(name = "inventory", fallbackMethod = "fallbackMethod")
     public OrderResponseDTO createOrder(OrderRequestDTO orderRequest, String userId) {
-        if(!orderEnabled) {
-            log.warn("Order denied. Service disabled by configuration");
-            throw new RuntimeException("The ordering service is under maintenance. Try again in a few minutes");
-        }
-        log.info(("Inserting a new order"));
-        Order order = orderMapper.toOrder(orderRequest);
-        order.setUserId(userId);
-        for(var item : order.getOrderLineItemList()) {
-            String sku = item.getSku();
-            Integer quantity = item.getQuantity();
-            try {
-                inventoryClient.reduceStock(sku, quantity);
-            } catch(Exception ex) {
-                log.error("Error to reduce stock for product {}: {}", sku, ex.getMessage());
-                throw new IllegalArgumentException("The order could not be processed: insufficient stock or inventory error");
-            }
-
-        }
-        order.setOrderNumber(UUID.randomUUID().toString());
-        Order createdOrder = orderRepository.save(order);
-        log.info("Order created with ID: {}", createdOrder.getId());
-        return orderMapper.toOrderResponse(createdOrder);
+       if(!orderEnabled) {
+           log.warn("Order denied. Service disabled by configuration");
+           throw new RuntimeException("The ordering service is under maintenance. Try again in a few minutes");
+       }
+       log.info(("Inserting a new order"));
+       Order order = orderMapper.toOrder(orderRequest);
+       order.setUserId(userId);
+       order.setOrderNumber(UUID.randomUUID().toString());
+       Order createdOrder = orderRepository.save(order);
+       log.info("Order created with ID: {}", createdOrder.getId());
+       List<OrderCreatedEvent.OrderItemEvent> orderItems = order.getOrderLineItemList()
+               .stream().map((OrderLineItems item) -> new OrderCreatedEvent.OrderItemEvent(
+                       item.getSku(), item.getPrice().toString(), item.getQuantity()
+               )).toList();
+       OrderCreatedEvent event = new OrderCreatedEvent(
+               createdOrder.getOrderNumber(), orderRequest.getEmail(), orderItems
+       );
+       rabbitTemplate.convertAndSend("order-events", "order.created", event);
+       log.info("Event submitted to RabbitMQ with order: {}", createdOrder.getOrderNumber());
+       return orderMapper.toOrderResponse(createdOrder);
     }
 
     @Override

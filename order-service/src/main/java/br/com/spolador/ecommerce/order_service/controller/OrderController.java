@@ -22,7 +22,7 @@ public class OrderController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public OrderResponseDTO createOrder(@Valid @RequestBody OrderRequestDTO orderRequest,
-                                        @AuthenticationPrincipal Jwt jwt) {
+                                                          @AuthenticationPrincipal Jwt jwt) {
         return orderService.createOrder(orderRequest, jwt.getSubject());
     }
 
