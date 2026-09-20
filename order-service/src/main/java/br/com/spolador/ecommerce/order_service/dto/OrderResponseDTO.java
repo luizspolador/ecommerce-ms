@@ -1,5 +1,6 @@
 package br.com.spolador.ecommerce.order_service.dto;
 
+import br.com.spolador.ecommerce.order_service.model.OrderStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,5 +15,6 @@ import java.util.List;
 public class OrderResponseDTO {
     private Long id;
     private String orderNumber;
+    private OrderStatus orderStatus;
     private List<OrderLineItemResponseDTO> orderLineItemList;
 }

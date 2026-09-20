@@ -22,6 +22,9 @@ public class Order {
 
     private String userId;
 
+    @Enumerated(EnumType.STRING)
+    private OrderStatus orderStatus;
+
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "order_id")
     private List<OrderLineItems> orderLineItemList;
