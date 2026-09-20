@@ -21,7 +21,7 @@ public class RabbitMQConfig {
         DefaultClassMapper classMapper = new DefaultClassMapper();
         classMapper.setTrustedPackages("*");
         Map<String, Class<?>> idClassMapping = new HashMap<>();
-        idClassMapping.put("br.com.spolador.ecommerce.inventory_service.event.OrderCreatedEvent", OrderConfirmedEvent.class);
+        idClassMapping.put("br.com.spolador.ecommerce.inventory_service.event.OrderConfirmedEvent", OrderConfirmedEvent.class);
         idClassMapping.put("br.com.spolador.ecommerce.inventory_service.event.OrderCancelledEvent", OrderCancelledEvent.class);
         classMapper.setIdClassMapping(idClassMapping);
         converter.setClassMapper(classMapper);

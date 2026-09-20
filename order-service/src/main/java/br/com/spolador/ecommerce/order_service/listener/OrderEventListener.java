@@ -1,7 +1,7 @@
 package br.com.spolador.ecommerce.order_service.listener;
 
 import br.com.spolador.ecommerce.order_service.event.OrderCancelledEvent;
-import br.com.spolador.ecommerce.order_service.event.OrderCreatedEvent;
+import br.com.spolador.ecommerce.order_service.event.OrderConfirmedEvent;
 import br.com.spolador.ecommerce.order_service.model.OrderStatus;
 import br.com.spolador.ecommerce.order_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -17,13 +17,21 @@ public class OrderEventListener {
     private final OrderService orderService;
 
     @RabbitListener(queues = "order-confirmed-queue")
-    public void handleOrderConfirmed(OrderCreatedEvent event) {
+    public void handleOrderConfirmed(OrderConfirmedEvent event) {
+        if(event.orderNumber()==null){
+            log.info("OrderConfirmedEvent with orderNumber null.");
+            return;
+        }
         orderService.updateOrderStatus(event.orderNumber(), OrderStatus.CONFIRMED);
 
     }
 
     @RabbitListener(queues = "order-cancelled-queue")
     public void handleOrderCancelled(OrderCancelledEvent event) {
+        if(event.orderNumber()==null){
+            log.info("OrderCancelledEvent with orderNumber null.");
+            return;
+        }
         orderService.updateOrderStatus(event.orderNumber(), OrderStatus.CANCELLED);
 
     }

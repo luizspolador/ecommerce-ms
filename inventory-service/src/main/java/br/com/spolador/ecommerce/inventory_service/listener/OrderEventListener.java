@@ -1,6 +1,7 @@
 package br.com.spolador.ecommerce.inventory_service.listener;
 
 import br.com.spolador.ecommerce.inventory_service.event.OrderCancelledEvent;
+import br.com.spolador.ecommerce.inventory_service.event.OrderConfirmedEvent;
 import br.com.spolador.ecommerce.inventory_service.event.OrderCreatedEvent;
 import br.com.spolador.ecommerce.inventory_service.service.InventoryService;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,8 @@ public class OrderEventListener {
             event.items().forEach(item -> {
                 inventoryService.reduceStock(item.sku(), item.quantity());
             });
-            rabbitTemplate.convertAndSend("order-events", "order.confirmed", event);
+            OrderConfirmedEvent confirmedEvent = new OrderConfirmedEvent(event.orderNumber(), event.email());
+            rabbitTemplate.convertAndSend("order-events", "order.confirmed", confirmedEvent);
             log.info("Discounted stock for order number {}", event.orderNumber());
         } catch (Exception e) {
             log.error("Unexpected error: {}", e.getMessage());

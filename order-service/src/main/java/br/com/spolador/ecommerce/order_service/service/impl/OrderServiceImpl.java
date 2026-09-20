@@ -10,8 +10,10 @@ import br.com.spolador.ecommerce.order_service.model.OrderLineItems;
 import br.com.spolador.ecommerce.order_service.model.OrderStatus;
 import br.com.spolador.ecommerce.order_service.repository.OrderRepository;
 import br.com.spolador.ecommerce.order_service.service.OrderService;
+import br.com.spolador.ecommerce.order_service.service.OutboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
@@ -29,6 +31,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
     private final RabbitTemplate rabbitTemplate;
+    private final OutboxService outboxService;
 
     @Value("${order.enabled:true}")
     private boolean orderEnabled;
@@ -36,40 +39,47 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponseDTO fallbackMethod(OrderRequestDTO orderRequest, String userId, Throwable throwable) {
         log.error("Circuit breaker activated. Cause: {}", throwable.getMessage());
         throw new RuntimeException("The inventory service is not responding, please try again later.");
-
     }
 
     @Override
     @Transactional
     public OrderResponseDTO createOrder(OrderRequestDTO orderRequest, String userId) {
-       if(!orderEnabled) {
-           log.warn("Order denied. Service disabled by configuration");
-           throw new RuntimeException("The ordering service is under maintenance. Try again in a few minutes");
-       }
-       log.info(("Inserting a new order"));
-       Order order = orderMapper.toOrder(orderRequest);
-       order.setUserId(userId);
-       order.setOrderNumber(UUID.randomUUID().toString());
-       order.setOrderStatus(OrderStatus.CREATED);
-       Order createdOrder = orderRepository.save(order);
-       log.info("Order created with ID: {}", createdOrder.getId());
-       List<OrderCreatedEvent.OrderItemEvent> orderItems = order.getOrderLineItemList()
-               .stream().map((OrderLineItems item) -> new OrderCreatedEvent.OrderItemEvent(
-                       item.getSku(), item.getPrice().toString(), item.getQuantity()
-               )).toList();
-       OrderCreatedEvent event = new OrderCreatedEvent(
-               createdOrder.getOrderNumber(), orderRequest.getEmail(), orderItems
-       );
-       rabbitTemplate.convertAndSend("order-events", "order.created", event);
-       log.info("Event submitted to RabbitMQ with order: {}", createdOrder.getOrderNumber());
-       return orderMapper.toOrderResponse(createdOrder);
+        if (!orderEnabled) {
+            log.warn("Order denied. Service disabled by configuration");
+            throw new RuntimeException("The ordering service is under maintenance. Try again in a few minutes");
+        }
+        log.info(("Inserting a new order"));
+        Order order = orderMapper.toOrder(orderRequest);
+        order.setUserId(userId);
+        order.setOrderNumber(UUID.randomUUID().toString());
+        order.setOrderStatus(OrderStatus.CREATED);
+        Order createdOrder = orderRepository.save(order);
+        log.info("Order created with ID: {}", createdOrder.getId());
+        List<OrderCreatedEvent.OrderItemEvent> orderItems = order.getOrderLineItemList()
+                .stream().map((OrderLineItems item) -> new OrderCreatedEvent.OrderItemEvent(
+                        item.getSku(), item.getPrice().toString(), item.getQuantity()
+                )).toList();
+        OrderCreatedEvent event = new OrderCreatedEvent(
+                createdOrder.getOrderNumber(), orderRequest.getEmail(), orderItems
+        );
+        boolean sendToRabbit = false;
+        try {
+            rabbitTemplate.convertAndSend("order-events", "order.created", event);
+            sendToRabbit = true;
+            log.info("The message was sent to RabbitMQ: {}", createdOrder.getOrderNumber());
+        } catch (AmqpException e) {
+            log.error("RabbitMQ unavailable. Outbox will ensure the shipment of your order: {}", createdOrder.getOrderNumber());
+        }
+        outboxService.saveOrderCreatedEvent(event, sendToRabbit);
+        log.info("Event submitted to RabbitMQ with order: {}", createdOrder.getOrderNumber());
+        return orderMapper.toOrderResponse(createdOrder);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponseDTO> getOrders(String userId, boolean isAdmin) {
         List<Order> orders;
-        if(isAdmin) {
+        if (isAdmin) {
             orders = orderRepository.findAll();
         } else {
             orders = orderRepository.findByUserId(userId);
@@ -91,7 +101,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void deleteOrder(Long id) {
-        if(!orderRepository.existsById(id)){
+        if (!orderRepository.existsById(id)) {
             throw new ResourceNotFoundException("Order", "id", id);
         }
         orderRepository.deleteById(id);
