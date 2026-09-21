@@ -74,6 +74,15 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
+  grafana-lgtm:
+    image: 'grafana/otel-lgtm:latest'
+    ports:
+      - '3000:3000'
+      - '4317:4317'
+      - '4318:4318'
+    environment:
+      - OTEL_METRIC_EXPORT_INTERVAL=5000
+
 volumes:
   mongo_data:
   inventory_data:
