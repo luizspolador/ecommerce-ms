@@ -20,6 +20,9 @@ import br.com.spolador.ecommerce.inventory_service.event.OrderCreatedEvent;
 import br.com.spolador.ecommerce.inventory_service.model.ProcessedOrder;
 import br.com.spolador.ecommerce.inventory_service.repository.ProcessedOrderRepository;
 
+import br.com.spolador.ecommerce.inventory_service.exception.ProductNotRegisteredException;
+import br.com.spolador.ecommerce.inventory_service.repository.RegisteredProductRepository;
+
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -31,6 +34,7 @@ import java.util.List;
 public class InventoryServiceImpl implements InventoryService {
     private final InventoryRepository inventoryRepository;
     private final ProcessedOrderRepository processedOrderRepository;
+    private final RegisteredProductRepository registeredProductRepository;
     private final InventoryMapper inventoryMapper;
     @Value("${inventory.allow-backorders:false}")
     private boolean allowBackOrders;
@@ -50,6 +54,10 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     @Transactional
     public InventoryResponseDTO createInventory(InventoryRequestDTO inventoryRequestDTO) {
+        boolean isRegistered = registeredProductRepository.existsBySku(inventoryRequestDTO.getSku());
+        if(!isRegistered) {
+            throw new ProductNotRegisteredException(inventoryRequestDTO.getSku());
+        }
         boolean exists = inventoryRepository.existsBySku(inventoryRequestDTO.getSku());
         if(exists) {
             throw new SkuAlreadyExistsException(inventoryRequestDTO.getSku());
@@ -75,6 +83,10 @@ public class InventoryServiceImpl implements InventoryService {
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Inventory", "id", id)
                 );
+        boolean isRegistered = registeredProductRepository.existsBySku(inventoryRequestDTO.getSku());
+        if(!isRegistered) {
+            throw new ProductNotRegisteredException(inventoryRequestDTO.getSku());
+        }
         inventory.setSku(inventoryRequestDTO.getSku());
         inventory.setQuantity(inventoryRequestDTO.getQuantity());
         Inventory updatedInventory = inventoryRepository.save(inventory);

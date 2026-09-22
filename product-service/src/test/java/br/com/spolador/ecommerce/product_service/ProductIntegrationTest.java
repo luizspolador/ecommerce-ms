@@ -64,6 +64,9 @@ class ProductIntegrationTest {
     @MockitoBean
     private JwtDecoder jwtDecoder;
 
+    @MockitoBean
+    private org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
+
     @BeforeEach
     void setUp() {
         io.opentelemetry.api.trace.Tracer noopTracer = io.opentelemetry.api.OpenTelemetry.noop().getTracer("test");
@@ -120,6 +123,7 @@ class ProductIntegrationTest {
                             .content(objectMapper.writeValueAsString(requestDTO)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(ProductFactory.DEFAULT_ID))
+                    .andExpect(jsonPath("$.sku").value(ProductFactory.DEFAULT_SKU))
                     .andExpect(jsonPath("$.name").value(ProductFactory.DEFAULT_NAME))
                     .andExpect(jsonPath("$.description").value(ProductFactory.DEFAULT_DESCRIPTION))
                     .andExpect(jsonPath("$.price").value(ProductFactory.DEFAULT_PRICE));

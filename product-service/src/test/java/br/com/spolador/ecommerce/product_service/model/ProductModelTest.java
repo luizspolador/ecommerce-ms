@@ -16,30 +16,33 @@ class ProductModelTest {
         // Builder
         Product productFromBuilder = Product.builder()
                 .id("p1")
+                .sku("SKU-LAPTOP-01")
                 .name("Laptop")
                 .description("Gaming laptop")
                 .price(BigDecimal.valueOf(2500.00))
                 .build();
 
         assertThat(productFromBuilder.getId()).isEqualTo("p1");
+        assertThat(productFromBuilder.getSku()).isEqualTo("SKU-LAPTOP-01");
         assertThat(productFromBuilder.getName()).isEqualTo("Laptop");
         assertThat(productFromBuilder.getDescription()).isEqualTo("Gaming laptop");
         assertThat(productFromBuilder.getPrice()).isEqualTo(BigDecimal.valueOf(2500.00));
 
         // AllArgsConstructor
-        Product productFromAllArgs = new Product("p1", "Laptop", "Gaming laptop", BigDecimal.valueOf(2500.00));
+        Product productFromAllArgs = new Product("p1", "SKU-LAPTOP-01", "Laptop", "Gaming laptop", BigDecimal.valueOf(2500.00));
         assertThat(productFromAllArgs).isEqualTo(productFromBuilder);
 
         // NoArgsConstructor & Setters
         Product productFromNoArgs = new Product();
         productFromNoArgs.setId("p1");
+        productFromNoArgs.setSku("SKU-LAPTOP-01");
         productFromNoArgs.setName("Laptop");
         productFromNoArgs.setDescription("Gaming laptop");
         productFromNoArgs.setPrice(BigDecimal.valueOf(2500.00));
 
         assertThat(productFromNoArgs).isEqualTo(productFromBuilder);
         assertThat(productFromNoArgs.hashCode()).isEqualTo(productFromBuilder.hashCode());
-        assertThat(productFromNoArgs.toString()).contains("p1", "Laptop");
+        assertThat(productFromNoArgs.toString()).contains("p1", "SKU-LAPTOP-01", "Laptop");
 
         // Builder toString
         assertThat(Product.builder().toString()).isNotEmpty();

@@ -35,6 +35,9 @@ class ProductServiceImplTest {
     @Mock
     private ProductMapper productMapper;
 
+    @Mock
+    private org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
+
     @InjectMocks
     private ProductServiceImpl productService;
 
@@ -43,7 +46,7 @@ class ProductServiceImplTest {
     class CreateProductTests {
 
         @Test
-        @DisplayName("Given valid ProductRequestDTO, should persist and return ProductResponseDTO")
+        @DisplayName("Given valid ProductRequestDTO, should persist, publish event to RabbitMQ and return ProductResponseDTO")
         void givenValidRequestDTO_whenCreateProduct_shouldReturnResponseDTO() {
             // Arrange
             ProductRequestDTO requestDTO = ProductFactory.createProductRequestDTO();
@@ -61,6 +64,7 @@ class ProductServiceImplTest {
             // Assert
             assertThat(actualResponseDTO).isNotNull();
             assertThat(actualResponseDTO.id()).isEqualTo(expectedResponseDTO.id());
+            assertThat(actualResponseDTO.sku()).isEqualTo(expectedResponseDTO.sku());
             assertThat(actualResponseDTO.name()).isEqualTo(expectedResponseDTO.name());
             assertThat(actualResponseDTO.description()).isEqualTo(expectedResponseDTO.description());
             assertThat(actualResponseDTO.price()).isEqualTo(expectedResponseDTO.price());
@@ -68,7 +72,8 @@ class ProductServiceImplTest {
             verify(productMapper).toProduct(requestDTO);
             verify(productRepository).save(productToSave);
             verify(productMapper).toProductResponseDTO(savedProduct);
-            verifyNoMoreInteractions(productRepository, productMapper);
+            verify(rabbitTemplate).convertAndSend(eq("product-events"), eq("product.created"), any(br.com.spolador.ecommerce.product_service.event.ProductCreatedEvent.class));
+            verifyNoMoreInteractions(productRepository, productMapper, rabbitTemplate);
         }
     }
 

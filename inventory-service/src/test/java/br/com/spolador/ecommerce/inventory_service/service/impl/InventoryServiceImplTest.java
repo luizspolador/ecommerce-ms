@@ -41,6 +41,9 @@ class InventoryServiceImplTest {
     private ProcessedOrderRepository processedOrderRepository;
 
     @Mock
+    private br.com.spolador.ecommerce.inventory_service.repository.RegisteredProductRepository registeredProductRepository;
+
+    @Mock
     private InventoryMapper inventoryMapper;
 
     @InjectMocks
@@ -112,6 +115,7 @@ class InventoryServiceImplTest {
             Inventory savedInventory = InventoryFactory.createInventory();
             InventoryResponseDTO expectedResponse = InventoryFactory.createInventoryResponseDTO();
 
+            when(registeredProductRepository.existsBySku(requestDTO.getSku())).thenReturn(true);
             when(inventoryRepository.existsBySku(requestDTO.getSku())).thenReturn(false);
             when(inventoryMapper.toModel(requestDTO)).thenReturn(inventoryToSave);
             when(inventoryRepository.save(inventoryToSave)).thenReturn(savedInventory);
@@ -120,20 +124,38 @@ class InventoryServiceImplTest {
             InventoryResponseDTO actualResponse = inventoryService.createInventory(requestDTO);
 
             assertThat(actualResponse).isNotNull().isEqualTo(expectedResponse);
+            verify(registeredProductRepository).existsBySku(requestDTO.getSku());
             verify(inventoryRepository).existsBySku(requestDTO.getSku());
             verify(inventoryRepository).save(inventoryToSave);
+        }
+
+        @Test
+        @DisplayName("When product is not registered in catalog, should throw ProductNotRegisteredException")
+        void whenProductNotRegistered_shouldThrowProductNotRegisteredException() {
+            InventoryRequestDTO requestDTO = InventoryFactory.createInventoryRequestDTO();
+            when(registeredProductRepository.existsBySku(requestDTO.getSku())).thenReturn(false);
+
+            assertThatThrownBy(() -> inventoryService.createInventory(requestDTO))
+                    .isInstanceOf(br.com.spolador.ecommerce.inventory_service.exception.ProductNotRegisteredException.class)
+                    .hasMessageContaining("not registered in catalog");
+
+            verify(registeredProductRepository).existsBySku(requestDTO.getSku());
+            verify(inventoryRepository, never()).existsBySku(any());
+            verify(inventoryRepository, never()).save(any());
         }
 
         @Test
         @DisplayName("When sku already exists, should throw SkuAlreadyExistsException")
         void whenSkuAlreadyExists_shouldThrowSkuAlreadyExistsException() {
             InventoryRequestDTO requestDTO = InventoryFactory.createInventoryRequestDTO();
+            when(registeredProductRepository.existsBySku(requestDTO.getSku())).thenReturn(true);
             when(inventoryRepository.existsBySku(requestDTO.getSku())).thenReturn(true);
 
             assertThatThrownBy(() -> inventoryService.createInventory(requestDTO))
                     .isInstanceOf(SkuAlreadyExistsException.class)
                     .hasMessageContaining("already exists");
 
+            verify(registeredProductRepository).existsBySku(requestDTO.getSku());
             verify(inventoryRepository).existsBySku(requestDTO.getSku());
             verify(inventoryRepository, never()).save(any());
         }
@@ -185,6 +207,7 @@ class InventoryServiceImplTest {
                     .id(id).sku("SKU-UPDATED").quantity(80).inStock(true).build();
 
             when(inventoryRepository.findById(id)).thenReturn(Optional.of(existing));
+            when(registeredProductRepository.existsBySku(updateDTO.getSku())).thenReturn(true);
             when(inventoryRepository.save(existing)).thenReturn(saved);
             when(inventoryMapper.toResponse(saved)).thenReturn(expectedResponse);
 
@@ -194,7 +217,27 @@ class InventoryServiceImplTest {
             assertThat(existing.getSku()).isEqualTo("SKU-UPDATED");
             assertThat(existing.getQuantity()).isEqualTo(80);
             verify(inventoryRepository).findById(id);
+            verify(registeredProductRepository).existsBySku(updateDTO.getSku());
             verify(inventoryRepository).save(existing);
+        }
+
+        @Test
+        @DisplayName("When updated SKU is not registered, should throw ProductNotRegisteredException")
+        void whenUpdatedSkuNotRegistered_shouldThrowProductNotRegisteredException() {
+            Long id = InventoryFactory.DEFAULT_ID;
+            InventoryRequestDTO updateDTO = InventoryFactory.createCustomInventoryRequestDTO("UNREGISTERED-SKU", 80);
+            Inventory existing = InventoryFactory.createInventory();
+
+            when(inventoryRepository.findById(id)).thenReturn(Optional.of(existing));
+            when(registeredProductRepository.existsBySku(updateDTO.getSku())).thenReturn(false);
+
+            assertThatThrownBy(() -> inventoryService.updateInventoryById(id, updateDTO))
+                    .isInstanceOf(br.com.spolador.ecommerce.inventory_service.exception.ProductNotRegisteredException.class)
+                    .hasMessageContaining("not registered in catalog");
+
+            verify(inventoryRepository).findById(id);
+            verify(registeredProductRepository).existsBySku(updateDTO.getSku());
+            verify(inventoryRepository, never()).save(any());
         }
 
         @Test

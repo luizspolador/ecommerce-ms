@@ -12,6 +12,12 @@ spring:
   cloud:
     config:
       enabled: false
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+      direct:
+        auto-startup: false
 
 eureka:
   client:

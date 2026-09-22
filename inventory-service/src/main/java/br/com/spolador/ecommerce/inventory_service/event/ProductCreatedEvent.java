@@ -1,12 +1,11 @@
-package br.com.spolador.ecommerce.product_service.dto;
+package br.com.spolador.ecommerce.inventory_service.event;
 
 import java.math.BigDecimal;
 
-public record ProductResponseDTO(
+public record ProductCreatedEvent(
         String id,
         String sku,
         String name,
-        String description,
         BigDecimal price
 ) {
 }

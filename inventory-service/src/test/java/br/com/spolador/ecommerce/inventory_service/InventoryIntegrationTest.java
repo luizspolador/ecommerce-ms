@@ -74,6 +74,9 @@ class InventoryIntegrationTest {
     private ProcessedOrderRepository processedOrderRepository;
 
     @MockitoBean
+    private br.com.spolador.ecommerce.inventory_service.repository.RegisteredProductRepository registeredProductRepository;
+
+    @MockitoBean
     private RabbitTemplate rabbitTemplate;
 
     @MockitoBean
@@ -102,6 +105,7 @@ class InventoryIntegrationTest {
                 .build();
         TransactionStatus txStatus = mock(TransactionStatus.class);
         when(transactionManager.getTransaction(any())).thenReturn(txStatus);
+        when(registeredProductRepository.existsBySku(anyString())).thenReturn(true);
     }
 
     @Nested
@@ -223,6 +227,26 @@ class InventoryIntegrationTest {
 
             verify(inventoryRepository).existsBySku(InventoryFactory.DEFAULT_SKU);
             verify(inventoryRepository).save(any(Inventory.class));
+        }
+
+        @Test
+        @DisplayName("Should return 400 Bad Request when product SKU is not registered in catalog")
+        void givenUnregisteredProduct_whenCreateInventory_thenReturns400BadRequest() throws Exception {
+            InventoryRequestDTO requestDTO = InventoryFactory.createCustomInventoryRequestDTO("UNREGISTERED_SKU", 10);
+            when(registeredProductRepository.existsBySku("UNREGISTERED_SKU")).thenReturn(false);
+
+            mockMvc.perform(post(BASE_PATH)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(requestDTO)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.title").value("Product Not Registered"))
+                    .andExpect(jsonPath("$.detail").value("Product with SKU 'UNREGISTERED_SKU' is not registered in catalog. You can only create inventory for registered products."))
+                    .andExpect(jsonPath("$.Sku").value("UNREGISTERED_SKU"));
+
+            verify(registeredProductRepository).existsBySku("UNREGISTERED_SKU");
+            verify(inventoryRepository, never()).save(any(Inventory.class));
         }
 
         @Test

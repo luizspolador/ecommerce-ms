@@ -7,6 +7,9 @@ import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 
 public record ProductRequestDTO(
+        @NotBlank(message = "product SKU is required")
+        String sku,
+
         @NotBlank(message = "product name is required")
         String name,
 

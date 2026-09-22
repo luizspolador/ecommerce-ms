@@ -1,419 +1,368 @@
 # 🛒 E-Commerce Microservices Platform
 
-[![Java 21](https://img.shields.io/badge/Java-21-orange.svg?logo=openjdk)](https://openjdk.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.8-brightgreen.svg?logo=springboot)](https://spring.io/projects/spring-boot)
-[![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2025.1.3-blue.svg?logo=spring)](https://spring.io/projects/spring-cloud)
-[![Keycloak](https://img.shields.io/badge/Keycloak-24.0.1-red.svg?logo=keycloak)](https://www.keycloak.org/)
-[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-4.2-orange.svg?logo=rabbitmq)](https://www.rabbitmq.com/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/luizspolador/ecommerce-ms/blob/main/LICENSE)
-
-Plataforma robusta de comércio eletrônico desenvolvida com arquitetura orientada a microsserviços (**Microservices Architecture**), orientada a eventos (**Event-Driven Architecture - EDA**) e seguindo as melhores práticas de sistemas distribuídos e o **12-Factor App**.
+Plataforma completa de comércio eletrônico baseada em arquitetura de microsserviços orientada a eventos (**Event-Driven Architecture - EDA**), com persistência poliglota, resiliência distribuída, segurança de ponta a ponta via OAuth2/OIDC e **100% de cobertura de testes automatizados**.
 
 ---
 
-## 📌 Sumário
-- [Visão Geral da Arquitetura](#-visão-geral-da-arquitetura)
-- [Padrões de Arquitetura Implementados](#-padrões-de-arquitetura-implementados)
-- [Descrição dos Componentes e Serviços](#-descrição-dos-componentes-e-serviços)
-  - [Discovery Server (Eureka)](#1-discovery-server-service-registry)
-  - [Config Server & Repositório Centralizado](#2-config-server--repositório-centralizado-config-data)
-  - [API Gateway](#3-api-gateway-ponto-de-entrada-único)
-  - [Product Service](#4-product-service)
-  - [Inventory Service](#5-inventory-service)
-  - [Order Service](#6-order-service)
-  - [Notification Service](#7-notification-service)
-- [Fluxo de Negócio Assíncrono (Saga & Outbox)](#-fluxo-de-negócio-assíncrono-saga--outbox)
-- [URLs e Tabela de Endpoints](#-urls-e-tabela-de-endpoints)
-- [Segurança & Autenticação (OAuth2 / Keycloak)](#-segurança--autenticação-oauth2--keycloak)
-- [Tecnologias e Versões](#-tecnologias-e-versões)
-- [Infraestrutura Docker](#-infraestrutura-docker)
-- [Como Executar o Projeto](#-como-executar-o-projeto)
-- [Autor e Contato](#-autor-e-contato)
-
----
-
-## 🏛 Visão Geral da Arquitetura
-
-A solução adota persistência poliglota (**Polyglot Persistence**), comunicação reativa e desacoplamento assíncrono via mensageria:
+## 🏛 Arquitetura do Sistema
 
 ```mermaid
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1E293B',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#3B82F6',
+    'lineColor': '#2563EB',
+    'textColor': '#000000',
+    'edgeLabelBackground': '#FFFFFF',
+    'clusterBkg': 'transparent',
+    'clusterBorder': '#64748B',
+    'fontSize': '15px',
+    'fontFamily': 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif'
+  },
+  'themeCSS': '.edgeLabel { color: #000000 !important; font-weight: bold; } .edgeLabel span { color: #000000 !important; } .label-container { fill: #FFFFFF !important; }'
+}}%%
 flowchart TD
-    Client(["🌐 Client / Frontend / Postman"])
+    %% ==========================================
+    %% CAMADA DE ACESSO, SEGURANÇA E GOVERNANÇA
+    %% ==========================================
+    Client["🌐 <big><b>Clientes & Aplicações</b></big><br/>• Web / Mobile / Postman<br/>• Requisições REST com Bearer JWT"]
 
-    subgraph Security["🔐 Identity & Access Management"]
-        Keycloak["Keycloak 24.0.1<br/>(OAuth2 / OIDC - Port: 8080)"]
+    subgraph SecurityControl ["🔐 Identidade & Acesso (OAuth2 / OIDC)"]
+        Keycloak["<big><b>Keycloak 24.0.1</b></big> (Port: 8080)<br/>• Realm: 'ecommerce-realm'<br/>• Emissor Central de JWT (RS256)<br/>• Roles: ROLE_ADMIN, ROLE_USER"]
+        PostgresKC[("<b>PostgreSQL 16</b><br/>keycloak-db: 5433<br/>Tabelas IAM & Sessions")]
     end
 
-    subgraph Infrastructure["⚙️ Infraestrutura & Core"]
-        Eureka["Discovery Server<br/>(Netflix Eureka - Port: 8761)"]
-        ConfigServer["Config Server<br/>(Spring Cloud Config - Port: 8888)"]
-        ConfigRepo[("📦 Git Repo Externo<br/>microservice-config-data")]
+    subgraph PlatformControl ["⚙️ Governança de Plataforma"]
+        Eureka["<big><b>Netflix Eureka</b></big> (Port: 8761)<br/>• Service Discovery & Registry<br/>• Dynamic Instances & Heartbeat"]
+        ConfigServer["<big><b>Spring Cloud Config</b></big> (Port: 8888)<br/>• Repositório Git Centralizado<br/>• Suporte a @RefreshScope em runtime"]
     end
 
-    subgraph EntryPoint["🚪 Entrada"]
-        Gateway["API Gateway<br/>(Spring Cloud Gateway - Port: 9001)<br/>Token Relay & RBAC"]
+    subgraph GatewayLayer ["🚪 API Gateway (Ponto Central de Entrada)"]
+        Gateway["<big><b>Spring Cloud Gateway</b></big> (Port: 9001 - WebFlux Reativo)<br/>• Token Relay Filter (Encaminhamento de Bearer JWT aos serviços)<br/>• Roteamento Dinâmico com Spring Cloud LoadBalancer (lb://)<br/>• Validação de Escopos OAuth2, RBAC & Segurança Perimetral"]
     end
 
-    subgraph Broker["📬 Message Broker"]
-        RabbitMQ["RabbitMQ 4.2<br/>Exchange: order-events"]
+    %% ==========================================
+    %% MICROSSERVIÇOS DE NEGÓCIO E PERSISTÊNCIA
+    %% ==========================================
+    subgraph ProductDomain ["📦 Domínio: Catálogo de Produtos"]
+        ProductService["<big><b>Product Service</b></big> (Port: 8080)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• CRUD Catálogo & Documentação Swagger<br/>• Endpoints: POST /api/v1/product | GET /api/v1/product<br/>• Emissor de 'ProductCreatedEvent'"]
+        MongoDB[("<b>MongoDB 7.0</b><br/>product-db: 27017<br/>Collection: 'products'")]
     end
 
-    subgraph Services["🚀 Business Microservices"]
-        ProductService["Product Service<br/>(Port: 8080)"]
-        OrderService["Order Service<br/>(Port: 8081)<br/>Outbox & Circuit Breaker"]
-        InventoryService["Inventory Service<br/>(Port: 8082)"]
-        NotificationService["Notification Service<br/>(Dynamic Port - DLQ)"]
+    subgraph InventoryDomain ["📊 Domínio: Estoque & Validação"]
+        InventoryService["<big><b>Inventory Service</b></big> (Port: 8082)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• Projeção Local: t_registered_product (Sync via EDA)<br/>• Validação Obrigatória: Rejeita SKU inexistente (HTTP 400)<br/>• Baixa Atômica com Lock Pessimista (SELECT ... FOR UPDATE)<br/>• Consumidor Idempotente (Tabela t_processed_order)<br/>• Endpoints: POST /api/v1/inventory | GET /api/v1/inventory/{sku}"]
+        MySQLInv[("<b>MySQL 8.0</b><br/>inventory-db: 3307<br/>• t_inventory (Saldos em Estoque)<br/>• t_registered_product (Projeção CQRS)<br/>• t_processed_order (Idempotência)")]
     end
 
-    subgraph Databases["💾 Persistência Poliglota"]
-        MongoDB[("MongoDB 7<br/>product-db: 27017")]
-        PostgresOrder[("PostgreSQL 16<br/>order-db: 5432")]
-        MySQLInv[("MySQL 8<br/>inventory-db: 3307")]
-        PostgresKC[("PostgreSQL 16<br/>keycloak-db: 5433")]
+    subgraph OrderDomain ["🛒 Domínio: Pedidos & Orquestração"]
+        OrderService["<big><b>Order Service</b></big> (Port: 8081)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• Ciclo de Vida: CREATED ➔ CONFIRMED / CANCELLED<br/>• Transactional Outbox (t_outbox) + MessageRelayer<br/>• Resilience4j (Circuit Breaker & Retry com Backoff)<br/>• Proteção contra IDOR / BOLA (Validação de Ownership)<br/>• Endpoints: POST /api/v1/order | GET /api/v1/order/{id}"]
+        PostgresOrder[("<b>PostgreSQL 16</b><br/>order-db: 5432<br/>• t_orders / t_order_items<br/>• t_outbox (Outbox Pattern)")]
     end
 
-    subgraph External["📧 Notificações"]
-        Mailtrap["Mail Server<br/>(Mailtrap / Gmail SMTP)"]
+    %% ==========================================
+    %% MENSAGERIA ASSÍNCRONA E RESILIÊNCIA (EDA)
+    %% ==========================================
+    subgraph BrokerLayer ["📬 Mensageria Assíncrona (RabbitMQ 4.2 - AMQP :5672 / Web :15672)"]
+        ExProduct["<b>TopicExchange: 'product-events'</b>"]
+        ExOrder["<b>TopicExchange: 'order-events'</b>"]
+
+        QProduct["<b>Queue: 'inventory-product-queue'</b><br/>Routing: product.created"]
+        QInv["<b>Queue: 'inventory-queue'</b><br/>Routing: order.created (DLX: inventory-dlx)"]
+        QConfirmed["<b>Queue: 'order-confirmed-queue'</b><br/>Routing: order.confirmed (DLX: order-dlx)"]
+        QCancelled["<b>Queue: 'order-cancelled-queue'</b><br/>Routing: order.cancelled (DLX: order-dlx)"]
+        QNotify["<b>Queue: 'notification-queue'</b><br/>Routing: order.* (DLX: notification-dlx)"]
+
+        DLQ["<b>Dead Letter Queues (DLQ)</b><br/>• order-dlq | inventory-dlq | notification-dlq<br/>• Retenção e auditoria após esgotamento de retries"]
     end
 
-    %% Relacionamentos
-    Client -->|1. Autentica e obtém JWT| Keycloak
+    %% ==========================================
+    %% NOTIFICAÇÕES E OBSERVABILIDADE
+    %% ==========================================
+    subgraph NotificationDomain ["📧 Notificações Transacionais"]
+        NotificationService["<big><b>Notification Service</b></big> (Porta Dinâmica)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• Consumidor AMQP com Retry Exponencial (3x)<br/>• Envio de e-mails transacionais (HTML/Text)"]
+        MailServer["<b>Servidor SMTP</b><br/>• Mailtrap Sandbox :2525 (Dev)<br/>• Gmail SMTP TLS (Prod)"]
+    end
+
+    subgraph ObservabilityStack ["🔭 Observabilidade & Telemetria Unificada"]
+        GrafanaLGTM["<big><b>Grafana LGTM Stack & OpenTelemetry</b></big><br/>• Grafana UI (Port: 3000) | OTLP HTTP (Port: 4318) / gRPC (Port: 4317)<br/>• Distributed Tracing (TraceId/SpanId W3C/B3), Logs & Métricas Actuator/Prometheus"]
+    end
+
+    %% ==========================================
+    %% CONEXÕES E FLUXOS DO SISTEMA
+    %% ==========================================
+    Client -->|"<b><font color='#000000'>1. Autentica com credenciais (POST /token)</font></b>"| Keycloak
     Keycloak -.-> PostgresKC
-    Client -->|2. Requisições com Bearer Token| Gateway
+    Client -->|"<b><font color='#000000'>2. Requisição REST com Header 'Authorization: Bearer JWT'</font></b>"| Gateway
 
-    ConfigRepo --> ConfigServer
-    ConfigServer -.->|Fornece configs em runtime| Gateway
-    ConfigServer -.->|Fornece configs em runtime| ProductService
-    ConfigServer -.->|Fornece configs em runtime| OrderService
-    ConfigServer -.->|Fornece configs em runtime| InventoryService
-    ConfigServer -.->|Fornece configs em runtime| NotificationService
+    Gateway -.->|"<b><font color='#000000'>Resolução de rotas via Service Discovery</font></b>"| Eureka
+    ConfigServer -.->|"<b><font color='#000000'>Propriedades centralizadas aos serviços (@RefreshScope)</font></b>"| Gateway
 
-    Gateway -.->|Service Lookup| Eureka
-    ProductService -.->|Registra-se| Eureka
-    OrderService -.->|Registra-se| Eureka
-    InventoryService -.->|Registra-se| Eureka
-    NotificationService -.->|Registra-se| Eureka
-
-    Gateway -->|/api/v1/product/**| ProductService
-    Gateway -->|/api/v1/order/**| OrderService
-    Gateway -->|/api/v1/inventory/**| InventoryService
+    Gateway -->|"<b><font color='#000000'>Route: /api/v1/product/**</font></b>"| ProductService
+    Gateway -->|"<b><font color='#000000'>Route: /api/v1/inventory/**</font></b>"| InventoryService
+    Gateway -->|"<b><font color='#000000'>Route: /api/v1/order/**</font></b>"| OrderService
 
     ProductService --> MongoDB
-    OrderService --> PostgresOrder
     InventoryService --> MySQLInv
+    OrderService --> PostgresOrder
 
-    %% Mensageria
-    OrderService -->|Publica order.created| RabbitMQ
-    RabbitMQ -->|inventory-queue| InventoryService
-    InventoryService -->|order.confirmed / order.cancelled| RabbitMQ
-    RabbitMQ -->|order-confirmed-queue / order-cancelled-queue| OrderService
-    RabbitMQ -->|notification-queue| NotificationService
-    NotificationService --> Mailtrap
+    ProductService -->|"<b><font color='#000000'>1. Publica 'product.created'</font></b>"| ExProduct
+    ExProduct -->|"<b><font color='#000000'>Routing key: product.created</font></b>"| QProduct
+    QProduct -->|"<b><font color='#000000'>2. Atualiza projeção local em t_registered_product</font></b>"| InventoryService
+
+    OrderService -->|"<b><font color='#000000'>1. Transactional Outbox publica 'order.created'</font></b>"| ExOrder
+    ExOrder -->|"<b><font color='#000000'>Routing key: order.created</font></b>"| QInv
+    QInv -->|"<b><font color='#000000'>2. Valida idempotência, lock pessimista e debita estoque</font></b>"| InventoryService
+
+    InventoryService -->|"<b><font color='#000000'>3. Publica resultado da validação</font></b>"| ExOrder
+    ExOrder -->|"<b><font color='#000000'>Routing key: order.confirmed</font></b>"| QConfirmed
+    ExOrder -->|"<b><font color='#000000'>Routing key: order.cancelled</font></b>"| QCancelled
+    ExOrder -->|"<b><font color='#000000'>Routing key: order.*</font></b>"| QNotify
+
+    QConfirmed -->|"<b><font color='#000000'>4a. Atualiza pedido para CONFIRMED</font></b>"| OrderService
+    QCancelled -->|"<b><font color='#000000'>4b. Atualiza pedido para CANCELLED</font></b>"| OrderService
+
+    QNotify -->|"<b><font color='#000000'>Consome evento final de pedido</font></b>"| NotificationService
+    NotificationService -->|"<b><font color='#000000'>Envia e-mail de confirmação ou cancelamento</font></b>"| MailServer
+
+    ProductService -.->|"<b><font color='#000000'>Traces & Logs OTLP</font></b>"| GrafanaLGTM
+    OrderService -.->|"<b><font color='#000000'>Traces & Logs OTLP</font></b>"| GrafanaLGTM
+    InventoryService -.->|"<b><font color='#000000'>Traces & Logs OTLP</font></b>"| GrafanaLGTM
+    NotificationService -.->|"<b><font color='#000000'>Traces & Logs OTLP</font></b>"| GrafanaLGTM
+    BrokerLayer -.->|"<b><font color='#000000'>Mensagens rejeitadas após 3 tentativas</font></b>"| DLQ
+
+    %% ==========================================
+    %% SUBGRAFOS: FUNDO TRANSPARENTE E BORDAS COLORIDAS (ADEUS FUNDO CINZA)
+    %% ==========================================
+    style SecurityControl fill:transparent,stroke:#9333EA,stroke-width:2px,stroke-dasharray: 4 4
+    style PlatformControl fill:transparent,stroke:#64748B,stroke-width:2px,stroke-dasharray: 4 4
+    style GatewayLayer fill:transparent,stroke:#0284C7,stroke-width:2px,stroke-dasharray: 4 4
+    style ProductDomain fill:transparent,stroke:#2563EB,stroke-width:2px,stroke-dasharray: 4 4
+    style InventoryDomain fill:transparent,stroke:#059669,stroke-width:2px,stroke-dasharray: 4 4
+    style OrderDomain fill:transparent,stroke:#D97706,stroke-width:2px,stroke-dasharray: 4 4
+    style BrokerLayer fill:transparent,stroke:#EA580C,stroke-width:2px,stroke-dasharray: 4 4
+    style NotificationDomain fill:transparent,stroke:#9333EA,stroke-width:2px,stroke-dasharray: 4 4
+    style ObservabilityStack fill:transparent,stroke:#0D9488,stroke-width:2px,stroke-dasharray: 4 4
+
+    %% ==========================================
+    %% CARDS COLORIDOS E VIBRANTES (ADEUS QUADRADOS BRANCOS)
+    %% ==========================================
+    classDef clientNode fill:#1E40AF,stroke:#93C5FD,stroke-width:2px,color:#FFFFFF;
+    classDef secNode fill:#6B21A8,stroke:#D8B4FE,stroke-width:2px,color:#FFFFFF;
+    classDef infraNode fill:#334155,stroke:#CBD5E1,stroke-width:2px,color:#FFFFFF;
+    classDef gwNode fill:#0369A1,stroke:#7DD3FC,stroke-width:2px,color:#FFFFFF;
+    classDef prodNode fill:#1D4ED8,stroke:#93C5FD,stroke-width:2px,color:#FFFFFF;
+    classDef invNode fill:#047857,stroke:#6EE7B7,stroke-width:2px,color:#FFFFFF;
+    classDef orderNode fill:#B45309,stroke:#FDE68A,stroke-width:2px,color:#FFFFFF;
+    classDef dbMongo fill:#15803D,stroke:#86EFAC,stroke-width:2px,color:#FFFFFF;
+    classDef dbMySQL fill:#0E7490,stroke:#67E8F9,stroke-width:2px,color:#FFFFFF;
+    classDef dbPostgres fill:#3730A3,stroke:#C7D2FE,stroke-width:2px,color:#FFFFFF;
+    classDef exchNode fill:#C2410C,stroke:#FED7AA,stroke-width:2px,color:#FFFFFF;
+    classDef queueNode fill:#9A3412,stroke:#FDBA74,stroke-width:2px,color:#FFFFFF;
+    classDef dlqNode fill:#991B1B,stroke:#FECACA,stroke-width:2px,color:#FFFFFF;
+    classDef notifNode fill:#7E22CE,stroke:#E9D5FF,stroke-width:2px,color:#FFFFFF;
+    classDef mailNode fill:#0F766E,stroke:#99F6E4,stroke-width:2px,color:#FFFFFF;
+    classDef obsNode fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC;
+
+    class Client clientNode;
+    class Keycloak secNode;
+    class PostgresKC dbPostgres;
+    class Eureka,ConfigServer infraNode;
+    class Gateway gwNode;
+    class ProductService prodNode;
+    class InventoryService invNode;
+    class OrderService orderNode;
+    class MongoDB dbMongo;
+    class MySQLInv dbMySQL;
+    class PostgresOrder dbPostgres;
+    class ExProduct,ExOrder exchNode;
+    class QProduct,QInv,QConfirmed,QCancelled,QNotify queueNode;
+    class DLQ dlqNode;
+    class NotificationService notifNode;
+    class MailServer mailNode;
+    class GrafanaLGTM obsNode;
+
+    %% ==========================================
+    %% SETAS EM DESTAQUE (GROSSAS, VIVAS E NÍTIDAS)
+    %% ==========================================
+    linkStyle default stroke:#2563EB,stroke-width:3px;
 ```
 
 ---
 
-## 🧩 Padrões de Arquitetura Implementados
+## 🛠 Tecnologias Utilizadas
 
-1. **API Gateway Pattern**: Ponto único de entrada para todos os clientes, responsável por roteamento, autenticação, propagação de token JWT (*Token Relay*) e desacoplamento de URLs internas.
-2. **Service Discovery & Registry Pattern**: Registro dinâmico de instâncias com Netflix Eureka, viabilizando balanceamento de carga client-side (*Spring Cloud LoadBalancer*) e auto-escalabilidade.
-3. **Externalized Configuration Pattern**: Todas as configurações de ambientes (dev, prod) são externalizadas e servidas pelo Spring Cloud Config Server.
-4. **Database-per-Service (Polyglot Persistence)**: Cada microsserviço possui e gerencia seu próprio banco de dados isolado (MongoDB, PostgreSQL e MySQL), garantindo baixo acoplamento e independência de esquema.
-5. **Transactional Outbox Pattern**: Evita perda de eventos de mensageria caso o broker (RabbitMQ) esteja indisponível no momento da criação do pedido, garantindo entrega *at-least-once*.
-6. **Saga Pattern (Choreography-based)**: Orquestração distribuída assíncrona entre pedidos e estoque sem bloqueio síncrono HTTP.
-7. **Circuit Breaker & Retry Patterns**: Implementado via Resilience4j para tolerância a falhas e resiliência em chamadas externas.
-8. **Dead Letter Queue (DLQ / DLX)**: Tratamento de exceções e quarentena de mensagens não processáveis no serviço de notificações.
-9. **Role-Based Access Control (RBAC)**: Autorização granular baseada em roles (`ADMIN`, `USER`) extraídas diretamente do token JWT gerado pelo Keycloak.
-10. **Java 21 Virtual Threads (Project Loom)**: Habilitadas em todos os microsserviços (`spring.threads.virtual.enabled: true`) para altíssimo throughput com I/O não bloqueante leve.
+| Categoria | Tecnologia | Versão | Aplicação / Finalidade |
+| :--- | :--- | :--- | :--- |
+| **Linguagem** | Java (OpenJDK) | **21 (LTS)** | Plataforma principal com suporte a **Virtual Threads (Project Loom)** |
+| **Framework Base** | Spring Boot | **4.0.8** | Estrutura de injeção de dependências, REST APIs e ciclo de vida |
+| **Service Discovery** | Spring Cloud Netflix Eureka | **2025.1.3** | Registro dinâmico e resolução de nomes das instâncias com load balancing |
+| **API Gateway** | Spring Cloud Gateway (WebFlux) | **2025.1.3** | Roteamento reativo, validação de tokens JWT e *Token Relay* |
+| **Configuração Central** | Spring Cloud Config Server | **2025.1.3** | Gestão externalizada de propriedades e perfis com suporte a `@RefreshScope` |
+| **Identity & IAM** | Keycloak | **24.0.1** | Provedor de identidade OAuth2 / OpenID Connect com RBAC |
+| **Mensageria** | RabbitMQ | **4.2-management** | Broker AMQP para orquestração de eventos assíncronos, DLQ e sincronização |
+| **Banco NoSQL** | MongoDB | **7.0** | Armazenamento de catálogo de produtos com esquema flexível |
+| **Banco Relacional** | PostgreSQL | **16-alpine** | Persistência de pedidos, eventos outbox e dados do Keycloak |
+| **Banco Relacional** | MySQL | **8.0** | Persistência de estoque, projeção de catálogo e pedidos processados |
+| **Resiliência** | Resilience4j | **2.3.0** | Circuit Breaker, Retry com backoff exponencial e Fallbacks |
+| **Documentação API** | SpringDoc OpenAPI 3 / Swagger UI | **2.8.5** | Especificação e interface interativa dos endpoints REST |
+| **Observabilidade** | OpenTelemetry & Spring Boot Actuator | - | Rastreamento distribuído, métricas e endpoints de saúde |
+| **Mapeamento & Utilitários**| MapStruct & Lombok | - | Mapeamento DTO de alta performance e redução de boilerplate |
+| **Containers** | Docker & Docker Compose | - | Orquestração unificada de toda a infraestrutura local |
+| **Testes Automatizados** | JUnit 5, Mockito & JaCoCo | - | Testes unitários e de integração com **100% de cobertura** |
 
 ---
 
-## 📦 Descrição dos Componentes e Serviços
+## 📦 Serviços da Aplicação
 
-### 1. Discovery Server (Service Registry)
-* **Tecnologia**: Spring Cloud Netflix Eureka Server
+### 1. Discovery Server (`discovery-server`)
 * **Porta**: `8761`
-* **Descrição**: Atua como o catálogo central do ecossistema. Sempre que um microsserviço sobe, ele se registra dinamicamente no Eureka. O API Gateway e outros serviços consultam o Eureka para resolver nomes de serviços lógicos (ex: `lb://order-service`) para endereços IP e portas reais, permitindo escalar horizontalmente qualquer serviço com instâncias dinâmicas (`server.port=0`).
-* **Dashboard Web**: `http://localhost:8761`
+* **Função**: Catálogo e registro de serviços dinâmico baseado no Netflix Eureka. Permite escalabilidade horizontal com portas dinâmicas (`server.port=0`) e balanceamento de carga automático via *Spring Cloud LoadBalancer*.
 
----
-
-### 2. Config Server & Repositório Centralizado (`config-data`)
-* **Tecnologia**: Spring Cloud Config Server
+### 2. Config Server (`config-server`)
 * **Porta**: `8888`
-* **Descrição**: Centraliza todas as propriedades de configuração (`application.yml`) dos microsserviços. Os microsserviços consultam o Config Server no bootstrap (`spring.config.import=optional:configserver:http://localhost:8888`). Possui suporte ao `@RefreshScope` do Spring Boot Actuator para recarregar propriedades em tempo de execução sem reiniciar as aplicações.
+* **Função**: Servidor centralizado de configurações externas. Fornece propriedades para os microsserviços via perfis (`dev`, `prod`) e suporta atualização em tempo de execução via `@RefreshScope` sem necessidade de reinício dos serviços.
 
-> [!IMPORTANT]
-> **Repositório Separado para Configurações**:
-> A pasta local [`config-data`](config-data) está vinculada e sincronizada com um repositório Git dedicado:
-> 🔗 **[microservice-config-data (GitHub)](https://github.com/luizspolador/microservice-config-data.git)**
-> 
-> O `config-server` lê as configurações diretamente desse repositório Git remoto (na branch `main`), aplicando o princípio de separação entre código-fonte da aplicação e dados de configuração de ambiente.
-
----
-
-### 3. API Gateway (Ponto de Entrada Único)
-* **Tecnologia**: Spring Cloud Gateway (Spring WebFlux reativo) + Spring Security OAuth2 Resource Server & Client
+### 3. API Gateway (`api-gateway`)
 * **Porta**: `9001`
-* **Descrição**: Ponto de entrada de todas as requisições externas. 
-  * Realiza a validação dos tokens JWT emitidos pelo Keycloak.
-  * Mapeia as roles do realm (`realm_access.roles`) para `ROLE_ADMIN` e `ROLE_USER`.
-  * Encaminha requisições usando balanceamento de carga (`lb://`).
-  * Utiliza o filtro `TokenRelay` para repassar o cabeçalho `Authorization: Bearer <token>` aos microsserviços downstream.
+* **Função**: Ponto de entrada unificado para clientes. Atua como OAuth2 Resource Server validando tokens JWT emitidos pelo Keycloak, converte roles (`ADMIN`, `USER`), aplica segurança perimetral e repassa as credenciais via *Token Relay* aos serviços internos.
+
+### 4. Product Service (`product-service`)
+* **Porta**: `8080` | **Banco**: MongoDB (`product-db:27017`)
+* **Função**: Gerencia o catálogo de produtos da plataforma (criação, consulta, atualização e remoção).
+  * **Sincronização EDA**: Ao criar um produto, publica o evento `ProductCreatedEvent` na exchange `product-events` (`routing key: product.created`) para atualização imediata dos estoques.
+  * Possui endpoints de leitura públicos e operações de escrita restritas a administradores (`ROLE_ADMIN`).
+
+### 5. Inventory Service (`inventory-service`)
+* **Porta**: `8082` | **Banco**: MySQL (`inventory-db:3307`)
+* **Função**: Gerencia o estoque de produtos por código SKU.
+  * **Projeção Local de Produtos**: Consome eventos de produtos criados e mantém a tabela `t_registered_product`.
+  * **Validação de Catálogo**: Só permite cadastro ou alteração de estoque para produtos devidamente registrados no catálogo, rejeitando SKUs inexistentes com `ProductNotRegisteredException` (HTTP 400).
+  * **Baixa de Estoque Atômica com Lock Pessimista**: `@Lock(LockModeType.PESSIMISTIC_WRITE)` (`SELECT ... FOR UPDATE`) com ordenação alfabética de SKUs para prevenção de deadlocks.
+  * **Consumidor Idempotente**: Controle via tabela `ProcessedOrder`, evitando duplicação de baixas por reprocessamento de mensagens.
+  * **Endpoints de Baixa Direta**: Suporta operações manuais/administrativas de ajuste de estoque via `PUT /api/v1/inventory/reduce/{sku}`.
+
+### 6. Order Service (`order-service`)
+* **Porta**: `8081` | **Banco**: PostgreSQL (`order-db:5432`)
+* **Função**: Responsável pelo ciclo de vida das ordens de compra.
+  * **Transactional Outbox**: Persiste pedido e evento na mesma transação atômica relacional, garantindo entrega confiável de mensagens mesmo em falhas do broker.
+  * **Scheduler de Reenvio**: Processa eventos outbox pendentes em caso de indisponibilidade temporária do RabbitMQ.
+  * **Proteção contra BOLA/IDOR**: Valida que clientes comuns só acessem seus próprios pedidos (`jwt.getSubject()`), mantendo visão global apenas para `ROLE_ADMIN`.
+  * **Tolerância a Falhas**: Circuit Breaker e Retry com Resilience4j.
+
+### 7. Notification Service (`notification-service`)
+* **Porta**: Dinâmica | **Tipo**: Orientado puramente a eventos (AMQP)
+* **Função**: Escuta eventos de status de pedidos no RabbitMQ (`order.confirmed` e `order.cancelled`) e envia e-mails transacionais formatados aos clientes via SMTP (Mailtrap em desenvolvimento / Gmail em produção). Possui Dead Letter Queue (`notification-dlq`) para retenção de mensagens com falha.
 
 ---
 
-### 4. Product Service
-* **Tecnologia**: Spring Boot 4.0.8, Spring Data MongoDB, MapStruct, Bean Validation
-* **Porta**: `8080` (configurada via Config Server)
-* **Banco de Dados**: MongoDB 7.0 (`product-db` na porta `27017`)
-* **Descrição**: Responsável pelo catálogo de produtos da loja.
-  * Cadastro, listagem, busca por ID, atualização e remoção de produtos.
-  * Mapeamento de entidades e DTOs de alta performance com MapStruct.
-  * Integração com `@RefreshScope` para mensagens de manutenção dinâmicas (`app.maintenance.message`).
+## 🔄 Fluxos de Negócio Assíncronos
 
----
+### Fluxo 1: Sincronização de Catálogo (EDA - Event-Carried State Transfer)
+1. Um administrador cadastra um novo produto via `POST /api/v1/product`.
+2. O **Product Service** grava no MongoDB e publica o evento `ProductCreatedEvent` no RabbitMQ (`product.created`).
+3. O **Inventory Service** consome a mensagem na fila `inventory-product-queue` e salva/atualiza a projeção na tabela `t_registered_product`.
+4. Ao cadastrar estoque (`POST /api/v1/inventory`), o sistema valida se o SKU existe na projeção local, garantindo consistência eventual desacoplada e de alta performance.
 
-### 5. Inventory Service
-* **Tecnologia**: Spring Boot 4.0.8, Spring Data JPA, Hibernate, MySQL Driver, Spring AMQP
-* **Porta**: `8082` (configurada via Config Server)
-* **Banco de Dados**: MySQL 8.0 (`inventory-db` na porta `3307`)
-* **Descrição**: Gerencia o estoque de produtos identificados por código SKU.
-  * Consulta de disponibilidade de estoque (`isInStock`).
-  * Atualização e baixa de estoque (`reduceStock`).
-  * **Consumidor de Eventos**: Ouve a fila `inventory-queue` quando um pedido é criado (`order.created`). Se todos os itens estiverem em estoque, decrementa a quantidade e publica `order.confirmed`. Caso falte estoque, cancela o pedido publicando `order.cancelled`.
-
----
-
-### 6. Order Service
-* **Tecnologia**: Spring Boot 4.0.8, Spring Data JPA, PostgreSQL Driver, Spring AMQP, Resilience4j, Spring Security OAuth2
-* **Porta**: `8081` (configurada via Config Server)
-* **Banco de Dados**: PostgreSQL 16 (`order-db` na porta `5432`)
-* **Descrição**: Responsável pelo ciclo de vida das ordens de compra.
-  * **Criação de Pedidos**: Recebe o pedido, associa ao `userId` extraído do JWT, define o status inicial como `CREATED` e armazena os itens (`OrderLineItems`).
-  * **Transactional Outbox Pattern**: Grava o evento na tabela `outbox_events` na mesma transação relacional. Caso o RabbitMQ esteja indisponível, o agendador [`MessageRelayer`](order-service/src/main/java/br/com/spolador/ecommerce/order_service/scheduler/MessageRelayer.java) faz a re-entrega automática.
-  * **Resiliência**: Configurado com Circuit Breaker e Retry do Resilience4j com backoff exponencial.
-  * **Atualização de Status**: Ouve as filas `order-confirmed-queue` e `order-cancelled-queue` para atualizar o status para `CONFIRMED` ou `CANCELLED`.
-
----
-
-### 7. Notification Service
-* **Tecnologia**: Spring Boot 4.0.8, Spring AMQP (RabbitMQ), Spring Mail, Spring Retry
-* **Porta**: Dinâmica (`server.port=0`)
-* **Descrição**: Microsserviço puramente orientado a eventos responsável por notificar o cliente via e-mail.
-  * Escuta a fila `notification-queue` (tópicos `order.confirmed` e `order.cancelled`).
-  * Dispara e-mails transacionais formatados via SMTP (Mailtrap em desenvolvimento e Gmail em produção).
-  * **Resiliência com DLQ**: Configuração de retries automáticos com intervalo incremental. Mensagens com falha são roteadas para a Dead Letter Exchange (`notification-dlx`) e armazenadas na fila `notification-dlq` para auditoria.
-
----
-
-## 🔄 Fluxo de Negócio Assíncrono (Saga & Outbox)
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as Cliente / Usuário
-    participant Gateway as API Gateway (:9001)
-    participant OrderSvc as Order Service (:8081)
-    participant Outbox as DB Outbox (PostgreSQL)
-    participant Rabbit as RabbitMQ (order-events)
-    participant InvSvc as Inventory Service (:8082)
-    participant NotifSvc as Notification Service
-    participant Mail as Servidor SMTP (Mailtrap)
-
-    User->>Gateway: POST /api/v1/order (Bearer JWT)
-    Gateway->>OrderSvc: Roteia com TokenRelay
-    OrderSvc->>OrderSvc: Salva Order (status: CREATED)
-    OrderSvc->>Outbox: Grava OutboxEvent (Transação Local)
-    
-    alt RabbitMQ Online
-        OrderSvc->>Rabbit: Publica order.created
-    else RabbitMQ Offline
-        Note over OrderSvc,Outbox: MessageRelayer processa pendências periodicamente
-    end
-
-    OrderSvc-->>User: 201 Created (OrderResponseDTO)
-
-    Rabbit->>InvSvc: Consome order.created (inventory-queue)
-    
-    alt Itens em Estoque
-        InvSvc->>InvSvc: Baixa quantidade em estoque (MySQL)
-        InvSvc->>Rabbit: Publica order.confirmed
-        Rabbit->>OrderSvc: Consome order.confirmed -> Atualiza Order para CONFIRMED
-        Rabbit->>NotifSvc: Consome order.confirmed -> Envia e-mail de confirmação
-        NotifSvc->>Mail: Dispara e-mail de Sucesso
-    else Sem Estoque Suficiente
-        InvSvc->>Rabbit: Publica order.cancelled (motivo: Insufficient stock)
-        Rabbit->>OrderSvc: Consome order.cancelled -> Atualiza Order para CANCELLED
-        Rabbit->>NotifSvc: Consome order.cancelled -> Envia e-mail de cancelamento
-        NotifSvc->>Mail: Dispara e-mail com justificativa
-    end
+```
+POST /api/v1/product ──► [Product Service] ──► MongoDB (product-db)
+                               │
+                      Publica 'product.created'
+                               │
+                               ▼
+                        [RabbitMQ Broker]
+                               │
+                    Queue: inventory-product-queue
+                               │
+                               ▼
+                     [Inventory Service] ──► MySQL (t_registered_product)
 ```
 
 ---
 
-## 🌐 URLs e Tabela de Endpoints
-
-### 1. Acesso Unificado via API Gateway (`http://localhost:9001`)
-
-Todas as requisições dos clientes devem passar pelo API Gateway na porta `9001`:
-
-| Serviço Alvo | Método | Endpoint no Gateway | Requisito de Autenticação / Role | Descrição |
-| :--- | :--- | :--- | :--- | :--- |
-| **Product** | `GET` | `/api/v1/product` | 🔓 Público (`permitAll`) | Lista todos os produtos cadastrados |
-| **Product** | `GET` | `/api/v1/product/{id}` | 🔓 Público (`permitAll`) | Busca produto por identificador |
-| **Product** | `POST` | `/api/v1/product` | 🔒 `ROLE_ADMIN` | Cadastra um novo produto |
-| **Product** | `PUT` | `/api/v1/product/{id}` | 🔒 `ROLE_ADMIN` | Atualiza dados de um produto |
-| **Product** | `DELETE` | `/api/v1/product/{id}` | 🔒 `ROLE_ADMIN` | Remove um produto |
-| **Inventory** | `GET` | `/api/v1/inventory` | 🔓 Público (`permitAll`) | Lista todos os registros de estoque |
-| **Inventory** | `GET` | `/api/v1/inventory/{sku}?quantity={qty}` | 🔓 Público (`permitAll`) | Verifica se há estoque para o SKU |
-| **Inventory** | `POST` | `/api/v1/inventory` | 🔒 `ROLE_ADMIN` | Cria um novo registro de estoque |
-| **Inventory** | `PUT` | `/api/v1/inventory/{id}` | 🔒 `ROLE_ADMIN` | Atualiza item de estoque por ID |
-| **Inventory** | `PUT` | `/api/v1/inventory/reduce/{sku}?quantity={qty}` | 🔒 `ROLE_ADMIN` | Reduz manualmente a quantidade de estoque |
-| **Inventory** | `DELETE` | `/api/v1/inventory/{id}` | 🔒 `ROLE_ADMIN` | Remove um registro de estoque |
-| **Order** | `POST` | `/api/v1/order` | 🔒 `ROLE_USER` | Cria um novo pedido de compra |
-| **Order** | `GET` | `/api/v1/order` | 🔒 `ROLE_ADMIN` ou `ROLE_USER` | Lista pedidos (Admin: todos; User: apenas os seus) |
-| **Order** | `GET` | `/api/v1/order/{id}` | 🔒 `ROLE_ADMIN` ou `ROLE_USER` | Obtém detalhes de um pedido por ID |
-| **Order** | `DELETE` | `/api/v1/order/{id}` | 🔒 `ROLE_ADMIN` | Deleta um pedido por ID |
+### Fluxo 2: Pedidos, Orquestração e Compensação (Saga Coreografada & Outbox)
+1. O cliente autenticado cria um pedido via `POST /api/v1/order` no Gateway.
+2. O **Order Service** persiste o pedido como `CREATED` e salva o evento de domínio na tabela outbox na mesma transação atômica no PostgreSQL.
+3. O evento `order.created` é publicado no RabbitMQ.
+4. O **Inventory Service** consome a mensagem, valida a idempotência (`ProcessedOrder`) e executa o lock pessimista dos itens.
+   * **Se houver estoque suficiente:** debita o saldo, registra o pedido como processado e publica `order.confirmed`.
+   * **Se faltar estoque para qualquer item:** executa rollback transacional total e publica `order.cancelled`.
+5. O **Order Service** consome a resposta e atualiza o pedido para `CONFIRMED` ou `CANCELLED`.
+6. O **Notification Service** consome o evento final e dispara o e-mail transacional correspondente para o cliente.
 
 ---
 
-### 2. Endpoints Diretos dos Serviços & Infraestrutura (Acesso Interno/Dev)
+## 🔒 Segurança e Controle de Acesso (RBAC)
 
-| Serviço | Porta Padrão | URL Base / Dashboard | Endpoints Especiais |
-| :--- | :--- | :--- | :--- |
-| **Keycloak IAM** | `8080` | `http://localhost:8080` | Realm: `ecommerce-realm` / Console Admin |
-| **Discovery Server** | `8761` | `http://localhost:8761` | Eureka Dashboard & Service Health |
-| **Config Server** | `8888` | `http://localhost:8888` | `/{service-name}/{profile}` (Ex: `/product-service/default`) |
-| **API Gateway** | `9001` | `http://localhost:9001` | Ponto único de roteamento |
-| **Product Service** | `8080` | `http://localhost:8080` | `/actuator/health`, `/actuator/refresh` |
-| **Order Service** | `8081` | `http://localhost:8081` | `/actuator/health`, `/actuator/circuitbreakers` |
-| **Inventory Service** | `8082` | `http://localhost:8082` | `/actuator/health`, `/actuator/refresh` |
-| **Notification Service**| `0` (dinâmica) | Registrado no Eureka | Consumidor AMQP (sem endpoints REST abertos) |
-| **RabbitMQ UI** | `15672` | `http://localhost:15672` | Usuário/Senha: `guest` / `guest` |
+* **Servidor de Identidade**: Keycloak 24.0.1 em container dedicado com PostgreSQL.
+* **Autenticação**: OAuth2 / OpenID Connect com tokens JWT assinados digitalmente.
+* **Defesa em Profundidade**: O Gateway aplica segurança perimetral e repassa as credenciais (*Token Relay*). Cada microsserviço atua de forma independente como OAuth2 Resource Server.
+* **Mapeamento de Roles**: O `JwtAuthenticationConverter` extrai as roles de `realm_access.roles` do Keycloak e as injeta no contexto de segurança como `ROLE_ADMIN` e `ROLE_USER`.
 
 ---
 
-## 🔒 Segurança & Autenticação (OAuth2 / Keycloak)
+## 📚 Documentação das APIs (Swagger UI)
 
-O sistema utiliza o padrão da indústria para autenticação e autorização centralizadas:
+Cada microsserviço disponibiliza sua interface interativa Swagger para consulta e testes:
 
-* **Servidor de Identidade**: Keycloak 24.0.1 executando em container com PostgreSQL.
-* **Realm**: `ecommerce-realm`
-* **Client ID**: `api-gateway-client`
-* **Tipo de Token**: JWT (JSON Web Token) contendo claims de usuário e roles no caminho `realm_access.roles`.
-* **Conversão Reativa de Permissões**: O Gateway intercepta o JWT, extrai as roles do Keycloak e mapeia para granted authorities do Spring Security com o prefixo `ROLE_` (ex: `ROLE_ADMIN`, `ROLE_USER`).
-* **Propagação de Identidade**: No Order Service, o identificador único do cliente (`sub`) é extraído diretamente do token via `@AuthenticationPrincipal Jwt jwt` para associar o pedido ao respectivo usuário de forma segura e auditável.
-
----
-
-## 🛠 Tecnologias e Versões
-
-| Categoria | Tecnologia | Versão | Função no Ecossistema |
-| :--- | :--- | :--- | :--- |
-| **Linguagem** | Java (OpenJDK) | **21 (LTS)** | Plataforma base com suporte a **Virtual Threads** |
-| **Framework Base** | Spring Boot | **4.0.8** | Base para criação de microsserviços |
-| **Cloud Framework**| Spring Cloud | **2025.1.3** | Componentes de sistemas distribuídos |
-| **Service Registry**| Spring Cloud Netflix Eureka | **2025.1.3** | Registro e descoberta dinâmica de serviços |
-| **API Gateway** | Spring Cloud Gateway (WebFlux)| **2025.1.3** | Roteamento reativo, filtros e token relay |
-| **Configuração** | Spring Cloud Config Server | **2025.1.3** | Servidor centralizado de configurações |
-| **Segurança / IAM**| Keycloak | **24.0.1** | Provedor de Identidade OAuth2 / OpenID Connect |
-| **Mensageria** | RabbitMQ | **4.2-management** | Broker de mensageria assíncrona AMQP |
-| **Resiliência** | Resilience4j | **2.3.0** | Circuit Breaker, Retry e Fallbacks |
-| **Banco NoSQL** | MongoDB | **7.0.4** | Catálogo de produtos (Product Service) |
-| **Banco Relacional**| PostgreSQL | **16-alpine** | Pedidos (Order Service) e Keycloak IAM |
-| **Banco Relacional**| MySQL | **8.0** | Controle de Estoque (Inventory Service) |
-| **E-mail / SMTP** | Mailtrap / Spring Mail | - | Servidor SMTP para disparo de e-mails transacionais |
-| **Mapeamento DTO** | MapStruct | **1.6.3** | Mapeador estático de alta performance |
-| **Utilitários** | Lombok | - | Redução de código boilerplate |
-| **Containers** | Docker & Docker Compose | - | Orquestração de toda a infraestrutura |
-
----
-
-## 🐳 Infraestrutura Docker
-
-O arquivo [`docker-compose.yml`](docker-compose.yml) provê todos os serviços de suporte necessários para a execução do ecossistema:
-
-```yaml
-services:
-  mongodb:          # MongoDB 7.0.4 para Product Service (Porta 27017)
-  inventory-db:     # MySQL 8.0 para Inventory Service (Porta 3307:3306)
-  order-db:         # PostgreSQL 16 para Order Service (Porta 5432:5432)
-  keycloak-db:      # PostgreSQL 16 para o Keycloak (Porta 5433:5432)
-  keycloak:         # Keycloak IAM 24.0.1 (Porta 8080:8080)
-  rabbitmq:         # RabbitMQ 4.2 Management (Portas 5672 e 15672)
-```
+* **Product Service**: `http://localhost:8080/swagger-ui.html`
+* **Order Service**: `http://localhost:8081/swagger-ui.html`
+* **Inventory Service**: `http://localhost:8082/swagger-ui.html`
+* **OpenAPI Specs (JSON)**:
+  * Product Service: `http://localhost:8080/v3/api-docs`
+  * Order Service: `http://localhost:8081/v3/api-docs`
+  * Inventory Service: `http://localhost:8082/v3/api-docs`
 
 ---
 
 ## 🚀 Como Executar o Projeto
 
 ### Pré-requisitos
-* **Java 21 JDK** instalado e configurado (`JAVA_HOME`).
+* **Java 21 JDK** instalado e configurado.
 * **Maven 3.9+** instalado.
-* **Docker** e **Docker Compose** instalados e em execução.
-* Acesso à internet para download de dependências e imagens.
+* **Docker & Docker Compose** em execução.
 
 ---
 
-### Passo 1: Subir os Containers de Infraestrutura
-No diretório raiz do projeto, inicie todos os bancos de dados, o RabbitMQ e o Keycloak:
+### Passo 1: Iniciar os Containers de Infraestrutura
+Na raiz do projeto, inicie os bancos de dados, RabbitMQ e Keycloak:
 ```bash
 docker compose up -d
 ```
-> Verifique o status dos containers com `docker compose ps` para garantir que todos estejam saudáveis.
 
 ---
 
-### Passo 2: Configurar o Keycloak
-1. Acesse o painel do Keycloak: `http://localhost:8080` (Usuário: `admin` / Senha: `admin`).
-2. Crie o Realm: `ecommerce-realm`.
-3. Crie o Client: `api-gateway-client` (com suporte a Service Accounts / Authorization Code Flow).
-4. Crie as Roles do Realm: `ADMIN` e `USER`.
-5. Crie os usuários para teste associando as devidas roles.
+### Passo 2: Ordem de Inicialização dos Microsserviços
+Execute os serviços na seguinte sequência para garantir a resolução correta de configurações e descoberta:
+
+```bash
+# 1. Discovery Server (Porta 8761 - Eureka)
+cd discovery-server && mvn spring-boot:run
+
+# 2. Config Server (Porta 8888)
+cd config-server && mvn spring-boot:run
+
+# 3. API Gateway (Porta 9001)
+cd api-gateway && mvn spring-boot:run
+
+# 4. Microsserviços de Negócio (em terminais separados ou via Run Dashboard do IntelliJ)
+cd product-service && mvn spring-boot:run
+cd inventory-service && mvn spring-boot:run
+cd order-service && mvn spring-boot:run
+cd notification-service && mvn spring-boot:run
+```
 
 ---
 
-### Passo 3: Ordem de Inicialização dos Microsserviços
-Para garantir a correta resolução de configurações e registro de serviços, execute as aplicações na seguinte ordem:
+## 🧪 Qualidade e Testes Automatizados
 
-1. **Config Server** (Porta `8888`):
-   ```bash
-   cd config-server
-   mvn spring-boot:run
-   ```
-   > 💡 Requer as variáveis de ambiente `GITHUB_USER` e `GITHUB_TOKEN` para clonar o repositório [`microservice-config-data`](https://github.com/luizspolador/microservice-config-data.git).
+O ecossistema conta com uma suíte abrangente de testes unitários e de integração utilizando **JUnit 5**, **Mockito**, **Spring Security Test** e **JaCoCo**:
 
-2. **Discovery Server** (Porta `8761`):
-   ```bash
-   cd discovery-server
-   mvn spring-boot:run
-   ```
-   > Acesse `http://localhost:8761` para visualizar o painel do Eureka.
-
-3. **API Gateway** (Porta `9001`):
-   ```bash
-   cd api-gateway
-   mvn spring-boot:run
-   ```
-
-4. **Microsserviços de Negócio** (Podem ser iniciados em qualquer ordem):
-   * **Product Service**: `cd product-service && mvn spring-boot:run`
-   * **Inventory Service**: `cd inventory-service && mvn spring-boot:run`
-   * **Order Service**: `cd order-service && mvn spring-boot:run`
-   * **Notification Service**: `cd notification-service && mvn spring-boot:run`
-
----
-
-## 👨‍💻 Autor
-
-Desenvolvido por **Luiz Henrique Spolador**.
-
-* **LinkedIn**: [luizspolador](https://www.linkedin.com/in/luizspolador/)
-* **GitHub Principal**: [luizspolador](https://github.com/luizspolador)
-* **Repositório do Projeto**: [ecommerce-ms](https://github.com/luizspolador/ecommerce-ms)
-* **Repositório de Configurações**: [microservice-config-data](https://github.com/luizspolador/microservice-config-data)
-
----
-*Gostou do projeto? Deixe uma ⭐️ no repositório!*
+* **Cobertura de Código**: **100%** de cobertura aferida via JaCoCo em todas as camadas de negócio, controllers, listeners e repositórios.
+* **Total de Testes**: **285+ testes automatizados** com **0 falhas**.
+* Para rodar os testes e gerar relatórios de cobertura:
+```bash
+mvn clean test jacoco:report
+```
+Os relatórios detalhados são gerados em `target/site/jacoco/index.html` em cada projeto.

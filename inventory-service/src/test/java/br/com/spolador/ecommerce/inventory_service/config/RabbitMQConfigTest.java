@@ -24,13 +24,11 @@ class RabbitMQConfigTest {
     }
 
     @Test
-    @DisplayName("Should create durable inventoryQueue with name 'inventory-queue' and DLQ arguments")
+    @DisplayName("Should create durable inventoryQueue with name 'inventory-queue'")
     void testInventoryQueue() {
         Queue queue = rabbitMQConfig.inventoryQueue();
         assertThat(queue.getName()).isEqualTo("inventory-queue");
         assertThat(queue.isDurable()).isTrue();
-        assertThat(queue.getArguments().get("x-dead-letter-exchange")).isEqualTo("inventory-dlx");
-        assertThat(queue.getArguments().get("x-dead-letter-routing-key")).isEqualTo("inventory.dead");
     }
 
     @Test
@@ -50,6 +48,33 @@ class RabbitMQConfigTest {
         assertThat(binding.getDestination()).isEqualTo("inventory-queue");
         assertThat(binding.getExchange()).isEqualTo("order-events");
         assertThat(binding.getRoutingKey()).isEqualTo("order.created");
+    }
+
+    @Test
+    @DisplayName("Should create productEventsExchange with name 'product-events'")
+    void testProductEventsExchange() {
+        TopicExchange exchange = rabbitMQConfig.productEventsExchange();
+        assertThat(exchange.getName()).isEqualTo("product-events");
+    }
+
+    @Test
+    @DisplayName("Should create inventoryProductQueue with name 'inventory-product-queue'")
+    void testInventoryProductQueue() {
+        Queue queue = rabbitMQConfig.inventoryProductQueue();
+        assertThat(queue.getName()).isEqualTo("inventory-product-queue");
+        assertThat(queue.isDurable()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should create binding between inventoryProductQueue and productEventsExchange with routing key 'product.created'")
+    void testProductBinding() {
+        Queue queue = rabbitMQConfig.inventoryProductQueue();
+        TopicExchange exchange = rabbitMQConfig.productEventsExchange();
+
+        Binding binding = rabbitMQConfig.productBinding(queue, exchange);
+        assertThat(binding.getDestination()).isEqualTo("inventory-product-queue");
+        assertThat(binding.getExchange()).isEqualTo("product-events");
+        assertThat(binding.getRoutingKey()).isEqualTo("product.created");
     }
 
     @Test

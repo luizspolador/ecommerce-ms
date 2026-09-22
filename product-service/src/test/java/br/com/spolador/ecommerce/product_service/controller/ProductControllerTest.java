@@ -74,11 +74,29 @@ class ProductControllerTest {
                     .andExpect(status().isCreated())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                     .andExpect(jsonPath("$.id", is(responseDTO.id())))
+                    .andExpect(jsonPath("$.sku", is(responseDTO.sku())))
                     .andExpect(jsonPath("$.name", is(responseDTO.name())))
                     .andExpect(jsonPath("$.description", is(responseDTO.description())))
                     .andExpect(jsonPath("$.price", is(responseDTO.price().doubleValue())));
 
             verify(productService).createProduct(requestDTO);
+        }
+
+        @Test
+        @DisplayName("Given blank sku, should return 400 Bad Request with validation error")
+        void givenBlankSku_whenCreateProduct_shouldReturn400BadRequest() throws Exception {
+            // Arrange
+            ProductRequestDTO invalidRequest = ProductFactory.createInvalidProductRequestDTOWithBlankSku();
+
+            // Act & Assert
+            mockMvc.perform(post(BASE_PATH)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(invalidRequest)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.title", is("Validation error")))
+                    .andExpect(jsonPath("$.errors.sku", is("product SKU is required")));
+
+            verifyNoInteractions(productService);
         }
 
         @Test

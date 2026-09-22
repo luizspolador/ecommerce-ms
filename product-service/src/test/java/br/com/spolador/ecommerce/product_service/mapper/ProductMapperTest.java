@@ -34,6 +34,7 @@ class ProductMapperTest {
         // Assert
         assertThat(product).isNotNull();
         assertThat(product.getId()).isNull();
+        assertThat(product.getSku()).isEqualTo(requestDTO.sku());
         assertThat(product.getName()).isEqualTo(requestDTO.name());
         assertThat(product.getDescription()).isEqualTo(requestDTO.description());
         assertThat(product.getPrice()).isEqualTo(requestDTO.price());
@@ -61,6 +62,7 @@ class ProductMapperTest {
         // Assert
         assertThat(responseDTO).isNotNull();
         assertThat(responseDTO.id()).isEqualTo(product.getId());
+        assertThat(responseDTO.sku()).isEqualTo(product.getSku());
         assertThat(responseDTO.name()).isEqualTo(product.getName());
         assertThat(responseDTO.description()).isEqualTo(product.getDescription());
         assertThat(responseDTO.price()).isEqualTo(product.getPrice());
@@ -81,13 +83,14 @@ class ProductMapperTest {
     void updateProductFromRequest_shouldUpdateProduct() {
         // Arrange
         Product product = ProductFactory.createProduct();
-        ProductRequestDTO updateDTO = ProductFactory.createCustomProductRequestDTO("Updated Name", "Updated Desc", BigDecimal.valueOf(1999.99));
+        ProductRequestDTO updateDTO = ProductFactory.createCustomProductRequestDTO("UPDATED-SKU", "Updated Name", "Updated Desc", BigDecimal.valueOf(1999.99));
 
         // Act
         productMapper.updateProductFromRequest(updateDTO, product);
 
         // Assert
         assertThat(product.getId()).isEqualTo(ProductFactory.DEFAULT_ID); // ID remains untouched
+        assertThat(product.getSku()).isEqualTo("UPDATED-SKU");
         assertThat(product.getName()).isEqualTo("Updated Name");
         assertThat(product.getDescription()).isEqualTo("Updated Desc");
         assertThat(product.getPrice()).isEqualTo(BigDecimal.valueOf(1999.99));
