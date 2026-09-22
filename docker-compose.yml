@@ -10,6 +10,11 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=password
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   inventory-db:
     image: mysql:8
@@ -21,6 +26,11 @@ services:
       MYSQL_DATABASE: inventory-db
     volumes:
       - inventory_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   order-db:
     image: postgres:16-alpine
@@ -33,6 +43,11 @@ services:
       POSTGRES_DB: order-db
     volumes:
       - order_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d order-db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   keycloak-db:
     image: postgres:16-alpine
@@ -45,6 +60,11 @@ services:
       POSTGRES_DB: keycloak-db
     volumes:
       - keycloak_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak-db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   keycloak:
     image: quay.io/keycloak/keycloak:24.0.1
@@ -60,7 +80,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - keycloak-db
+      keycloak-db:
+        condition: service_healthy
 
   rabbitmq:
     image: rabbitmq:4.2-management
@@ -73,6 +94,11 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   grafana-lgtm:
     image: 'grafana/otel-lgtm:latest'

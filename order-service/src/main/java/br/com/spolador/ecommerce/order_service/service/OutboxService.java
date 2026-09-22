@@ -6,7 +6,7 @@ import br.com.spolador.ecommerce.order_service.model.OutboxEvent;
 import java.util.List;
 
 public interface OutboxService {
-    void saveOrderCreatedEvent(OrderCreatedEvent event, boolean isProcessed);
+    OutboxEvent saveOrderCreatedEvent(OrderCreatedEvent event, boolean isProcessed);
     List<OutboxEvent> getPendingEvents();
     void markAsProcessed(Long id);
 }

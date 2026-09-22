@@ -48,6 +48,51 @@ public class GlobalControllerAdvice {
         return problemDetail;
     }
 
+    @ExceptionHandler(SkuAlreadyExistsException.class)
+    public ProblemDetail handleSkuAlreadyExistsException(SkuAlreadyExistsException ex, WebRequest req) {
+        log.warn("SKU already exists. Path: {}, Message: {}", req.getDescription(false), ex.getMessage());
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problemDetail.setTitle("Conflict");
+        problemDetail.setType(URI.create("https://api.ecommerce.com/errors/conflict"));
+        problemDetail.setProperty("Timestamp", Instant.now());
+        problemDetail.setProperty("Sku", ex.getSku());
+        return problemDetail;
+    }
+
+    @ExceptionHandler(InsufficientStockException.class)
+    public ProblemDetail handleInsufficientStockException(InsufficientStockException ex, WebRequest req) {
+        log.warn("Insufficient stock. Path: {}, Message: {}", req.getDescription(false), ex.getMessage());
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problemDetail.setTitle("Insufficient stock");
+        problemDetail.setType(URI.create("https://api.ecommerce.com/errors/insufficient-stock"));
+        problemDetail.setProperty("Timestamp", Instant.now());
+        problemDetail.setProperty("Sku", ex.getSku());
+        problemDetail.setProperty("RequestedQuantity", ex.getRequestedQuantity());
+        problemDetail.setProperty("AvailableQuantity", ex.getAvailableQuantity());
+        return problemDetail;
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail handleIllegalArgumentException(IllegalArgumentException ex, WebRequest req) {
+        log.warn("Invalid argument. Path: {}, Message: {}", req.getDescription(false), ex.getMessage());
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problemDetail.setTitle("Invalid Argument");
+        problemDetail.setType(URI.create("https://api.ecommerce.com/errors/invalid-argument"));
+        problemDetail.setProperty("Timestamp", Instant.now());
+        return problemDetail;
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrityViolationException(org.springframework.dao.DataIntegrityViolationException ex, WebRequest req) {
+        log.warn("Data integrity violation. Path: {}, Message: {}", req.getDescription(false), ex.getMessage());
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "Database conflict: duplicate or invalid data integrity constraint.");
+        problemDetail.setTitle("Conflict");
+        problemDetail.setType(URI.create("https://api.ecommerce.com/errors/conflict"));
+        problemDetail.setProperty("Timestamp", Instant.now());
+        return problemDetail;
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleException(Exception ex, WebRequest req) {
         log.error("An unexpected error occurred {}: {}", req.getDescription(false), ex.getMessage(), ex);

@@ -24,7 +24,7 @@ public class SecurityConfig {
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity serverHttpSecurity) {
         serverHttpSecurity.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(authorizeExchangeSpec -> authorizeExchangeSpec
-                        .pathMatchers("/eureka/**").permitAll()
+                        .pathMatchers("/eureka/**", "/actuator/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/product/**").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/inventory/**").permitAll()
                         .pathMatchers("/api/v1/product/**").hasRole(Role.ADMIN.name())

@@ -48,6 +48,16 @@ public class GlobalControllerAdvice {
         return problemDetail;
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail handleIllegalArgumentException(IllegalArgumentException ex, WebRequest req) {
+        log.warn("Invalid argument. Path: {}, Message: {}", req.getDescription(false), ex.getMessage());
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problemDetail.setTitle("Invalid Argument");
+        problemDetail.setType(URI.create("https://api.ecommerce.com/errors/invalid-argument"));
+        problemDetail.setProperty("Timestamp", Instant.now());
+        return problemDetail;
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleException(Exception ex, WebRequest req) {
         log.error("An unexpected error occurred {}: {}", req.getDescription(false), ex.getMessage(), ex);

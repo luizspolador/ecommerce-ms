@@ -3,6 +3,8 @@ package br.com.spolador.ecommerce.inventory_service.listener;
 import br.com.spolador.ecommerce.inventory_service.event.OrderCancelledEvent;
 import br.com.spolador.ecommerce.inventory_service.event.OrderConfirmedEvent;
 import br.com.spolador.ecommerce.inventory_service.event.OrderCreatedEvent;
+import br.com.spolador.ecommerce.inventory_service.exception.InsufficientStockException;
+import br.com.spolador.ecommerce.inventory_service.exception.ResourceNotFoundException;
 import br.com.spolador.ecommerce.inventory_service.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,23 +24,21 @@ public class OrderEventListener {
     public void handleOrderCreatedEvent(OrderCreatedEvent event) {
         log.info("Event received in Inventory to Order: {}", event.orderNumber());
         try {
-            boolean allProductsInStock = event.items().stream()
-                            .allMatch(item -> inventoryService.isInStock(item.sku(), item.quantity()));
-            if(!allProductsInStock){
-                cancelOrder(event, "Insufficient stock for one or more products");
-                return;
-            }
-            event.items().forEach(item -> {
-                inventoryService.reduceStock(item.sku(), item.quantity());
-            });
+            boolean processed = inventoryService.processOrderStockReduction(event.orderNumber(), event.items());
             OrderConfirmedEvent confirmedEvent = new OrderConfirmedEvent(event.orderNumber(), event.email());
             rabbitTemplate.convertAndSend("order-events", "order.confirmed", confirmedEvent);
-            log.info("Discounted stock for order number {}", event.orderNumber());
+            if (processed) {
+                log.info("Discounted stock for order number {}", event.orderNumber());
+            } else {
+                log.info("Order number {} was already processed. Resent confirmation event.", event.orderNumber());
+            }
+        } catch (InsufficientStockException | ResourceNotFoundException e) {
+            log.warn("Insufficient stock or product not found for order {}: {}", event.orderNumber(), e.getMessage());
+            cancelOrder(event, "Insufficient stock for one or more products");
         } catch (Exception e) {
-            log.error("Unexpected error: {}", e.getMessage());
+            log.error("Unexpected error during inventory processing for order {}: {}", event.orderNumber(), e.getMessage());
             cancelOrder(event, "Technical error during inventory processing");
         }
-
     }
 
     private void cancelOrder(OrderCreatedEvent event, String reason) {

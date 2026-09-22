@@ -4,7 +4,6 @@ import br.com.spolador.ecommerce.order_service.event.OrderCreatedEvent;
 import br.com.spolador.ecommerce.order_service.model.OutboxEvent;
 import br.com.spolador.ecommerce.order_service.repository.OutboxRepository;
 import br.com.spolador.ecommerce.order_service.service.OutboxService;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,7 +20,7 @@ public class OutboxServiceImpl implements OutboxService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public void saveOrderCreatedEvent(OrderCreatedEvent event, boolean isProcessed) {
+    public OutboxEvent saveOrderCreatedEvent(OrderCreatedEvent event, boolean isProcessed) {
         String payload = objectMapper.writeValueAsString(event);
         OutboxEvent outboxEvent = OutboxEvent.builder()
                 .aggregateId(event.orderNumber())
@@ -30,8 +29,9 @@ public class OutboxServiceImpl implements OutboxService {
                 .createdAt(LocalDateTime.now())
                 .processed(isProcessed)
                 .build();
-        outboxRepository.save(outboxEvent);
+        OutboxEvent saved = outboxRepository.save(outboxEvent);
         log.info("Event saved in outbox: {}", event.orderNumber());
+        return saved;
     }
 
     @Override

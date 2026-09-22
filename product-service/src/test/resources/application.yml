@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: product-service
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: product-db
+      username: root
+      password: password
+      authentication-database: admin
+  cloud:
+    config:
+      enabled: false
+
+eureka:
+  client:
+    enabled: false
+  instance:
+    prefer-ip-address: true
+
+app:
+  maintenance:
+    message: "test-maintenance-message"

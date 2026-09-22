@@ -12,7 +12,7 @@ public record ProductRequestDTO(
 
         String description,
 
-        @NotNull(message = "product price is can not be null")
+        @NotNull(message = "product price cannot be null")
         @Positive(message = "product price must be greater than zero")
         BigDecimal price
 ) {

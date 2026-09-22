@@ -10,6 +10,7 @@ public interface OrderService {
     OrderResponseDTO createOrder(OrderRequestDTO orderRequest, String userId);
     List<OrderResponseDTO> getOrders(String userId, boolean isAdmin);
     OrderResponseDTO getOrderById(Long id);
+    OrderResponseDTO getOrderById(Long id, String userId, boolean isAdmin);
     void deleteOrder(Long id);
     void updateOrderStatus(String orderNumber, OrderStatus newStatus);
 }
