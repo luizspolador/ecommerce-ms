@@ -33,8 +33,8 @@ public class OrderController {
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public OrderResponseDTO createOrder(@Valid @RequestBody OrderRequestDTO orderRequest,
-                                        @AuthenticationPrincipal Jwt jwt) {
+    public OrderResponseDTO createOrder(final @Valid @RequestBody OrderRequestDTO orderRequest,
+                                        final @AuthenticationPrincipal Jwt jwt) {
         return orderService.createOrder(orderRequest, jwt.getSubject());
     }
 
@@ -44,9 +44,9 @@ public class OrderController {
     })
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public List<OrderResponseDTO> getOrders(@AuthenticationPrincipal Jwt jwt) {
-        String userId = jwt.getSubject();
-        boolean isAdmin = hasAdminRole(jwt);
+    public List<OrderResponseDTO> getOrders(final @AuthenticationPrincipal Jwt jwt) {
+        final String userId = jwt.getSubject();
+        final boolean isAdmin = hasAdminRole(jwt);
         return orderService.getOrders(userId, isAdmin);
     }
 
@@ -58,9 +58,9 @@ public class OrderController {
     })
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public OrderResponseDTO getOrderById(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
-        String userId = jwt.getSubject();
-        boolean isAdmin = hasAdminRole(jwt);
+    public OrderResponseDTO getOrderById(final @PathVariable Long id, final @AuthenticationPrincipal Jwt jwt) {
+        final String userId = jwt.getSubject();
+        final boolean isAdmin = hasAdminRole(jwt);
         return orderService.getOrderById(id, userId, isAdmin);
     }
 
@@ -73,14 +73,14 @@ public class OrderController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteOrder(@PathVariable Long id) {
+    public void deleteOrder(final @PathVariable Long id) {
         orderService.deleteOrder(id);
     }
 
-    private boolean hasAdminRole(Jwt jwt) {
-        Map<String, Object> realmAccess = jwt.getClaim("realm_access");
+    private boolean hasAdminRole(final Jwt jwt) {
+        final Map<String, Object> realmAccess = jwt.getClaim("realm_access");
         if (realmAccess != null && realmAccess.containsKey("roles")) {
-            List<String> roles = (List<String>) realmAccess.get("roles");
+            final List<String> roles = (List<String>) realmAccess.get("roles");
             return roles.stream().anyMatch(role -> role.equalsIgnoreCase("ADMIN"));
         }
         return false;

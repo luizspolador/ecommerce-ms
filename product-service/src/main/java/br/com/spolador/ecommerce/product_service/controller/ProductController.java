@@ -35,7 +35,7 @@ public class ProductController {
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ProductResponseDTO createProduct(@RequestBody @Valid ProductRequestDTO productRequest) {
+    public ProductResponseDTO createProduct(final @RequestBody @Valid ProductRequestDTO productRequest) {
         return productService.createProduct(productRequest);
     }
 
@@ -45,7 +45,7 @@ public class ProductController {
     })
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public List<ProductResponseDTO> getAllProducts(HttpServletResponse response) {
+    public List<ProductResponseDTO> getAllProducts(final HttpServletResponse response) {
         response.addHeader("X-Maintenance-Message", maintenanceMessage);
         return productService.getAllProducts();
     }
@@ -57,7 +57,7 @@ public class ProductController {
     })
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public ProductResponseDTO getProductById(@PathVariable String id) {
+    public ProductResponseDTO getProductById(final @PathVariable String id) {
         return productService.getProductById(id);
     }
 
@@ -68,7 +68,7 @@ public class ProductController {
     })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteProductById(@PathVariable String id) {
+    public void deleteProductById(final @PathVariable String id) {
         productService.deleteProductById(id);
     }
 
@@ -80,8 +80,8 @@ public class ProductController {
     })
     @PutMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public ProductResponseDTO updateProductById(@PathVariable String id,
-                                                @RequestBody @Valid ProductRequestDTO productRequest) {
+    public ProductResponseDTO updateProductById(final @PathVariable String id,
+                                                final @RequestBody @Valid ProductRequestDTO productRequest) {
         return productService.updateProduct(id, productRequest);
     }
 }

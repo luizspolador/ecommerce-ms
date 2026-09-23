@@ -30,7 +30,7 @@ public class InventoryController {
     })
     @GetMapping("/{sku}")
     @ResponseStatus(HttpStatus.OK)
-    public boolean isInStock(@PathVariable String sku, @RequestParam Integer quantity) {
+    public boolean isInStock(final @PathVariable String sku, final @RequestParam Integer quantity) {
         return inventoryService.isInStock(sku, quantity);
     }
 
@@ -42,7 +42,7 @@ public class InventoryController {
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public InventoryResponseDTO createInventory(@Valid @RequestBody InventoryRequestDTO inventoryRequest) {
+    public InventoryResponseDTO createInventory(final @Valid @RequestBody InventoryRequestDTO inventoryRequest) {
         return inventoryService.createInventory(inventoryRequest);
     }
 
@@ -52,7 +52,7 @@ public class InventoryController {
     })
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public List<InventoryResponseDTO> getAllInventories(HttpServletRequest request){
+    public List<InventoryResponseDTO> getAllInventories(final HttpServletRequest request){
         log.debug("Request from port: {}", request.getServerPort());
         return inventoryService.getAllInventories();
     }
@@ -65,8 +65,8 @@ public class InventoryController {
     })
     @PutMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public InventoryResponseDTO updateInventory(@PathVariable Long id,
-                                                @Valid @RequestBody InventoryRequestDTO inventoryRequest) {
+    public InventoryResponseDTO updateInventory(final @PathVariable Long id,
+                                                final @Valid @RequestBody InventoryRequestDTO inventoryRequest) {
         return inventoryService.updateInventoryById(id, inventoryRequest);
     }
 
@@ -78,7 +78,7 @@ public class InventoryController {
     })
     @PutMapping("/reduce/{sku}")
     @ResponseStatus(HttpStatus.OK)
-    public String reduceStock(@PathVariable String sku, @RequestParam Integer quantity) {
+    public String reduceStock(final @PathVariable String sku, final @RequestParam Integer quantity) {
         inventoryService.reduceStock(sku, quantity);
         return "Stock was reduced";
     }
@@ -90,7 +90,7 @@ public class InventoryController {
     })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteInventory(@PathVariable Long id) {
+    public void deleteInventory(final @PathVariable Long id) {
         inventoryService.deleteInventoryById(id);
     }
 }

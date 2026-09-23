@@ -40,32 +40,32 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderResponseDTO createOrder(OrderRequestDTO orderRequest, String userId) {
+    public OrderResponseDTO createOrder(final OrderRequestDTO orderRequest, final String userId) {
         if (!orderEnabled) {
             log.warn("Order denied. Service disabled by configuration");
             throw new ServiceUnavailableException("The ordering service is under maintenance. Try again in a few minutes");
         }
         log.info("Inserting a new order");
-        Order order = orderMapper.toOrder(orderRequest);
+        final Order order = orderMapper.toOrder(orderRequest);
         order.setUserId(userId);
         order.setOrderNumber(UUID.randomUUID().toString());
         order.setOrderStatus(OrderStatus.CREATED);
-        Order createdOrder = orderRepository.save(order);
+        final Order createdOrder = orderRepository.save(order);
         log.info("Order created with ID: {}", createdOrder.getId());
 
-        List<OrderCreatedEvent.OrderItemEvent> orderItems = order.getOrderLineItemList()
-                .stream().map((OrderLineItems item) -> new OrderCreatedEvent.OrderItemEvent(
+        final List<OrderCreatedEvent.OrderItemEvent> orderItems = order.getOrderLineItemList()
+                .stream().map((final OrderLineItems item) -> new OrderCreatedEvent.OrderItemEvent(
                         item.getSku(), item.getPrice().toString(), item.getQuantity()
                 )).toList();
-        OrderCreatedEvent event = new OrderCreatedEvent(
+        final OrderCreatedEvent event = new OrderCreatedEvent(
                 createdOrder.getOrderNumber(), orderRequest.getEmail(), orderItems
         );
 
         // Atomic write to outbox table: saved in the same DB transaction as the Order (processed = false)
-        OutboxEvent outboxEvent = outboxService.saveOrderCreatedEvent(event, false);
+        final OutboxEvent outboxEvent = outboxService.saveOrderCreatedEvent(event, false);
 
         // Publish internal Spring domain event: only dispatched to RabbitMQ AFTER the database transaction commits
-        Long outboxId = outboxEvent != null ? outboxEvent.getId() : null;
+        final Long outboxId = outboxEvent != null ? outboxEvent.getId() : null;
         eventPublisher.publishEvent(new OrderCreatedDomainEvent(outboxId, event));
         log.info("Order created event registered in outbox for order: {}", createdOrder.getOrderNumber());
 
@@ -74,8 +74,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponseDTO> getOrders(String userId, boolean isAdmin) {
-        List<Order> orders;
+    public List<OrderResponseDTO> getOrders(final String userId, final boolean isAdmin) {
+        final List<Order> orders;
         if (isAdmin) {
             orders = orderRepository.findAll();
         } else {
@@ -87,8 +87,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public OrderResponseDTO getOrderById(Long id) {
-        Order order = orderRepository.findById(id)
+    public OrderResponseDTO getOrderById(final Long id) {
+        final Order order = orderRepository.findById(id)
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Order", "id", id)
                 );
@@ -97,8 +97,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public OrderResponseDTO getOrderById(Long id, String userId, boolean isAdmin) {
-        Order order = orderRepository.findById(id)
+    public OrderResponseDTO getOrderById(final Long id, final String userId, final boolean isAdmin) {
+        final Order order = orderRepository.findById(id)
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Order", "id", id)
                 );
@@ -111,7 +111,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public void deleteOrder(Long id) {
+    public void deleteOrder(final Long id) {
         if (!orderRepository.existsById(id)) {
             throw new ResourceNotFoundException("Order", "id", id);
         }
@@ -121,7 +121,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public void updateOrderStatus(String orderNumber, OrderStatus newStatus) {
+    public void updateOrderStatus(final String orderNumber, final OrderStatus newStatus) {
         log.info("Updating database, order: {} -> {}", orderNumber, newStatus);
         orderRepository.findByOrderNumber(orderNumber).ifPresentOrElse(
                 order -> {

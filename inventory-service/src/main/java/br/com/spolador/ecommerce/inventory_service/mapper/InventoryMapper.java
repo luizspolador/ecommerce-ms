@@ -8,8 +8,11 @@ import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface InventoryMapper {
-    Inventory toModel(InventoryRequestDTO inventoryRequestDTO);
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    Inventory toModel(final InventoryRequestDTO inventoryRequestDTO);
 
     @Mapping(target = "inStock", expression = "java(inventory.getQuantity() > 0)")
-    InventoryResponseDTO toResponse(Inventory inventory);
+    InventoryResponseDTO toResponse(final Inventory inventory);
 }

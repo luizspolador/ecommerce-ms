@@ -10,10 +10,14 @@ import org.mapstruct.MappingTarget;
 @Mapper(componentModel = "spring")
 public interface ProductMapper {
     @Mapping(target = "id", ignore = true)
-    Product toProduct(ProductRequestDTO productRequest);
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    Product toProduct(final ProductRequestDTO productRequest);
 
-    ProductResponseDTO toProductResponseDTO(Product product);
+    ProductResponseDTO toProductResponseDTO(final Product product);
 
     @Mapping(target = "id", ignore = true)
-    void updateProductFromRequest(ProductRequestDTO productRequest, @MappingTarget Product product);
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    void updateProductFromRequest(final ProductRequestDTO productRequest, @MappingTarget final Product product);
 }

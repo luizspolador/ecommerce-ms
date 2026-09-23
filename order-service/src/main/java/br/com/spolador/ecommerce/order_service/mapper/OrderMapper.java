@@ -13,12 +13,16 @@ import org.mapstruct.Mapping;
 public interface OrderMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "orderNumber", ignore = true)
-    Order toOrder(OrderRequestDTO orderRequest);
+    @Mapping(target = "userId", ignore = true)
+    @Mapping(target = "orderStatus", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    Order toOrder(final OrderRequestDTO orderRequest);
 
     @Mapping(target = "id", ignore = true)
-    OrderLineItems toOrderLineItems(OrderLineItemRequestDTO orderLineItemsRequest);
+    OrderLineItems toOrderLineItems(final OrderLineItemRequestDTO orderLineItemsRequest);
 
-    OrderResponseDTO toOrderResponse(Order order);
+    OrderResponseDTO toOrderResponse(final Order order);
 
-    OrderLineItemResponseDTO toOrderLineItemsResponse(OrderLineItems orderLineItems);
+    OrderLineItemResponseDTO toOrderLineItemsResponse(final OrderLineItems orderLineItems);
 }

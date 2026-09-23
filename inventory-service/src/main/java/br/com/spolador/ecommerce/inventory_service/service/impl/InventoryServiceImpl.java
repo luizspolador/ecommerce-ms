@@ -41,7 +41,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public boolean isInStock(String sku, Integer quantity) {
+    public boolean isInStock(final String sku, final Integer quantity) {
         if(allowBackOrders) {
             log.warn("Backorder active: authorizing stock for sku: {}", sku);
             return true;
@@ -53,17 +53,17 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Transactional
-    public InventoryResponseDTO createInventory(InventoryRequestDTO inventoryRequestDTO) {
-        boolean isRegistered = registeredProductRepository.existsBySku(inventoryRequestDTO.getSku());
+    public InventoryResponseDTO createInventory(final InventoryRequestDTO inventoryRequestDTO) {
+        final boolean isRegistered = registeredProductRepository.existsBySku(inventoryRequestDTO.getSku());
         if(!isRegistered) {
             throw new ProductNotRegisteredException(inventoryRequestDTO.getSku());
         }
-        boolean exists = inventoryRepository.existsBySku(inventoryRequestDTO.getSku());
+        final boolean exists = inventoryRepository.existsBySku(inventoryRequestDTO.getSku());
         if(exists) {
             throw new SkuAlreadyExistsException(inventoryRequestDTO.getSku());
         }
-        Inventory inventory = inventoryMapper.toModel(inventoryRequestDTO);
-        Inventory createdInventory = inventoryRepository.save(inventory);
+        final Inventory inventory = inventoryMapper.toModel(inventoryRequestDTO);
+        final Inventory createdInventory = inventoryRepository.save(inventory);
         log.info("The inventory created with SKU: {}", createdInventory.getSku());
         return inventoryMapper.toResponse(createdInventory);
     }
@@ -78,25 +78,25 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Transactional
-    public InventoryResponseDTO updateInventoryById(Long id, InventoryRequestDTO inventoryRequestDTO) {
-        Inventory inventory = inventoryRepository.findById(id)
+    public InventoryResponseDTO updateInventoryById(final Long id, final InventoryRequestDTO inventoryRequestDTO) {
+        final Inventory inventory = inventoryRepository.findById(id)
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Inventory", "id", id)
                 );
-        boolean isRegistered = registeredProductRepository.existsBySku(inventoryRequestDTO.getSku());
+        final boolean isRegistered = registeredProductRepository.existsBySku(inventoryRequestDTO.getSku());
         if(!isRegistered) {
             throw new ProductNotRegisteredException(inventoryRequestDTO.getSku());
         }
         inventory.setSku(inventoryRequestDTO.getSku());
         inventory.setQuantity(inventoryRequestDTO.getQuantity());
-        Inventory updatedInventory = inventoryRepository.save(inventory);
+        final Inventory updatedInventory = inventoryRepository.save(inventory);
         log.info("Inventory updated for id: {}", id);
         return inventoryMapper.toResponse(updatedInventory);
     }
 
     @Override
     @Transactional
-    public void deleteInventoryById(Long id) {
+    public void deleteInventoryById(final Long id) {
         if(!inventoryRepository.existsById(id)){
             throw new ResourceNotFoundException("Inventory", "id", id);
         }
@@ -106,8 +106,8 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Transactional
-    public void reduceStock(String sku, Integer quantity) {
-        var inventory = inventoryRepository.findBySkuWithLock(sku)
+    public void reduceStock(final String sku, final Integer quantity) {
+        final var inventory = inventoryRepository.findBySkuWithLock(sku)
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Inventory", "sku", sku)
                 );
@@ -120,7 +120,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean processOrderStockReduction(String orderNumber, List<OrderCreatedEvent.OrderItemEvent> items) {
+    public boolean processOrderStockReduction(final String orderNumber, final List<OrderCreatedEvent.OrderItemEvent> items) {
         if (processedOrderRepository.existsByOrderNumber(orderNumber)) {
             log.warn("Order {} was already processed. Skipping stock reduction to maintain idempotency.", orderNumber);
             return false;
@@ -131,15 +131,15 @@ public class InventoryServiceImpl implements InventoryService {
         }
 
         // Sort items by SKU alphabetically to prevent database deadlocks under concurrent orders
-        List<OrderCreatedEvent.OrderItemEvent> sortedItems = items.stream()
+        final List<OrderCreatedEvent.OrderItemEvent> sortedItems = items.stream()
                 .sorted(Comparator.comparing(OrderCreatedEvent.OrderItemEvent::sku))
                 .toList();
 
         if (allowBackOrders) {
             log.warn("Backorder active: authorizing stock reduction bypass for order: {}", orderNumber);
         } else {
-            for (OrderCreatedEvent.OrderItemEvent item : sortedItems) {
-                Inventory inventory = inventoryRepository.findBySkuWithLock(item.sku())
+            for (final OrderCreatedEvent.OrderItemEvent item : sortedItems) {
+                final Inventory inventory = inventoryRepository.findBySkuWithLock(item.sku())
                         .orElseThrow(() -> new ResourceNotFoundException("Inventory", "sku", item.sku()));
 
                 if (inventory.getQuantity() < item.quantity()) {

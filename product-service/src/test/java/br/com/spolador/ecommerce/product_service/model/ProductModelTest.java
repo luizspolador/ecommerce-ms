@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -13,13 +14,17 @@ class ProductModelTest {
     @Test
     @DisplayName("Should construct Product using Builder, AllArgsConstructor and NoArgsConstructor")
     void testProductConstructorsAndBuilder() {
+        final LocalDateTime now = LocalDateTime.now();
+
         // Builder
-        Product productFromBuilder = Product.builder()
+        final Product productFromBuilder = Product.builder()
                 .id("p1")
                 .sku("SKU-LAPTOP-01")
                 .name("Laptop")
                 .description("Gaming laptop")
                 .price(BigDecimal.valueOf(2500.00))
+                .createdAt(now)
+                .updatedAt(now)
                 .build();
 
         assertThat(productFromBuilder.getId()).isEqualTo("p1");
@@ -27,18 +32,22 @@ class ProductModelTest {
         assertThat(productFromBuilder.getName()).isEqualTo("Laptop");
         assertThat(productFromBuilder.getDescription()).isEqualTo("Gaming laptop");
         assertThat(productFromBuilder.getPrice()).isEqualTo(BigDecimal.valueOf(2500.00));
+        assertThat(productFromBuilder.getCreatedAt()).isEqualTo(now);
+        assertThat(productFromBuilder.getUpdatedAt()).isEqualTo(now);
 
         // AllArgsConstructor
-        Product productFromAllArgs = new Product("p1", "SKU-LAPTOP-01", "Laptop", "Gaming laptop", BigDecimal.valueOf(2500.00));
+        final Product productFromAllArgs = new Product("p1", "SKU-LAPTOP-01", "Laptop", "Gaming laptop", BigDecimal.valueOf(2500.00), now, now);
         assertThat(productFromAllArgs).isEqualTo(productFromBuilder);
 
         // NoArgsConstructor & Setters
-        Product productFromNoArgs = new Product();
+        final Product productFromNoArgs = new Product();
         productFromNoArgs.setId("p1");
         productFromNoArgs.setSku("SKU-LAPTOP-01");
         productFromNoArgs.setName("Laptop");
         productFromNoArgs.setDescription("Gaming laptop");
         productFromNoArgs.setPrice(BigDecimal.valueOf(2500.00));
+        productFromNoArgs.setCreatedAt(now);
+        productFromNoArgs.setUpdatedAt(now);
 
         assertThat(productFromNoArgs).isEqualTo(productFromBuilder);
         assertThat(productFromNoArgs.hashCode()).isEqualTo(productFromBuilder.hashCode());

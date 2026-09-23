@@ -10,5 +10,4 @@ import java.util.Optional;
 public interface RegisteredProductRepository extends JpaRepository<RegisteredProduct, Long> {
     Optional<RegisteredProduct> findBySku(String sku);
     boolean existsBySku(String sku);
-    void deleteBySku(String sku);
 }
