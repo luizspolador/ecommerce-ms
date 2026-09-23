@@ -1,13 +1,18 @@
 spring:
   application:
     name: config-server
+  profiles:
+    active: native
   cloud:
     config:
       server:
+        native:
+          search-locations:
+            - file:./config-data
+            - file:../config-data
         git:
-          uri: https://github.com/luizspolador/microservice-config-data.git
-          username: ${GITHUB_USER}
-          password: ${GITHUB_TOKEN}
+          uri: https://github.com/luizspolador/ecommerce-ms.git
+          search-paths: config-data
           clone-on-start: true
           default-label: main
 server:

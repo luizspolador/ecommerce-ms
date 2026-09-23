@@ -1,0 +1,37 @@
+server:
+  port: 0
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+logging:
+  level:
+    root: INFO
+    com.ecommerce: INFO
+
+spring:
+  threads:
+    virtual:
+      enabled: true
+  rabbitmq:
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 3000ms
+          max-attempts: 3
+          max-interval: 10000ms
+          multiplier: 2.0
+  mail:
+    host: sandbox.smtp.mailtrap.io
+    port: 2525
+    username: ${MAILTRAP_USERNAME:your_mailtrap_user}
+    password: ${MAILTRAP_PASSWORD:your_mailtrap_password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true

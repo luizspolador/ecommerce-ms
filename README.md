@@ -36,7 +36,7 @@ flowchart TD
 
     subgraph PlatformControl ["⚙️ Governança de Plataforma"]
         Eureka["<big><b>Netflix Eureka</b></big> (Port: 8761)<br/>• Service Discovery & Registry<br/>• Dynamic Instances & Heartbeat"]
-        ConfigServer["<big><b>Spring Cloud Config</b></big> (Port: 8888)<br/>• Repositório Git Centralizado<br/>• Suporte a @RefreshScope em runtime"]
+        ConfigServer["<big><b>Spring Cloud Config</b></big> (Port: 8888)<br/>• Governança Centralizada (config-data)<br/>• Suporte a @RefreshScope em runtime"]
     end
 
     subgraph GatewayLayer ["🚪 API Gateway (Ponto Central de Entrada)"]
@@ -47,7 +47,7 @@ flowchart TD
     %% MICROSSERVIÇOS DE NEGÓCIO E PERSISTÊNCIA
     %% ==========================================
     subgraph ProductDomain ["📦 Domínio: Catálogo de Produtos"]
-        ProductService["<big><b>Product Service</b></big> (Port: 8080)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• CRUD Catálogo & Documentação Swagger<br/>• Endpoints: POST /api/v1/product | GET /api/v1/product<br/>• Emissor de 'ProductCreatedEvent'"]
+        ProductService["<big><b>Product Service</b></big> (Port: 8083)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• CRUD Catálogo & Documentação Swagger<br/>• Endpoints: POST /api/v1/product | GET /api/v1/product<br/>• Emissor de 'ProductCreatedEvent'"]
         MongoDB[("<b>MongoDB 7.0</b><br/>product-db: 27017<br/>Collection: 'products'")]
     end
 
@@ -222,14 +222,14 @@ flowchart TD
 
 ### 2. Config Server (`config-server`)
 * **Porta**: `8888`
-* **Função**: Servidor centralizado de configurações externas. Fornece propriedades para os microsserviços via perfis (`dev`, `prod`) e suporta atualização em tempo de execução via `@RefreshScope` sem necessidade de reinício dos serviços.
+* **Função**: Servidor centralizado de configurações externas integradas à pasta `config-data`. Fornece propriedades para os microsserviços via perfis (`dev`, `prod`) e suporta atualização em tempo de execução via `@RefreshScope` sem necessidade de reinício dos serviços.
 
 ### 3. API Gateway (`api-gateway`)
 * **Porta**: `9001`
 * **Função**: Ponto de entrada unificado para clientes. Atua como OAuth2 Resource Server validando tokens JWT emitidos pelo Keycloak, converte roles (`ADMIN`, `USER`), aplica segurança perimetral e repassa as credenciais via *Token Relay* aos serviços internos.
 
 ### 4. Product Service (`product-service`)
-* **Porta**: `8080` | **Banco**: MongoDB (`product-db:27017`)
+* **Porta**: `8083` | **Banco**: MongoDB (`product-db:27017`)
 * **Função**: Gerencia o catálogo de produtos da plataforma (criação, consulta, atualização e remoção).
   * **Sincronização EDA**: Ao criar um produto, publica o evento `ProductCreatedEvent` na exchange `product-events` (`routing key: product.created`) para atualização imediata dos estoques.
   * Possui endpoints de leitura públicos e operações de escrita restritas a administradores (`ROLE_ADMIN`).
@@ -306,11 +306,11 @@ POST /api/v1/product ──► [Product Service] ──► MongoDB (product-db)
 
 Cada microsserviço disponibiliza sua interface interativa Swagger para consulta e testes:
 
-* **Product Service**: `http://localhost:8080/swagger-ui.html`
+* **Product Service**: `http://localhost:8083/swagger-ui.html`
 * **Order Service**: `http://localhost:8081/swagger-ui.html`
 * **Inventory Service**: `http://localhost:8082/swagger-ui.html`
 * **OpenAPI Specs (JSON)**:
-  * Product Service: `http://localhost:8080/v3/api-docs`
+  * Product Service: `http://localhost:8083/v3/api-docs`
   * Order Service: `http://localhost:8081/v3/api-docs`
   * Inventory Service: `http://localhost:8082/v3/api-docs`
 
@@ -333,7 +333,19 @@ docker compose up -d
 
 ---
 
-### Passo 2: Ordem de Inicialização dos Microsserviços
+### Passo 2: Configuração de Variáveis de Ambiente (Opcional)
+Para garantir máxima segurança, nenhuma credencial sensível está gravada nos arquivos versionados. O projeto disponibiliza o arquivo [`/.env.example`](.env.example) com todas as variáveis suportadas:
+
+* **API Gateway (`KEYCLOAK_CLIENT_SECRET`)**: Secret do client `api-gateway-client` configurado no Keycloak. Se não informado, adota o fallback `ecommerce-client-secret`.
+* **Notification Service (Ambiente de Testes / Sandbox - Mailtrap)**:
+  * Por padrão (perfil default), o serviço utiliza o **[Mailtrap](https://mailtrap.io)** para captura segura de e-mails transacionais (pedidos confirmados ou cancelados) sem envio a caixas de e-mail reais.
+  * Basta criar uma conta gratuita no Mailtrap e exportar `MAILTRAP_USERNAME` e `MAILTRAP_PASSWORD` no terminal ou nas Run Configurations da IDE.
+* **Notification Service (Ambiente Real - Gmail SMTP Opcional)**:
+  * Caso queira enviar e-mails reais via Gmail, execute com o perfil `prod` (`--spring.profiles.active=prod`) definindo `GMAIL_USERNAME` e `GMAIL_APP_PASSWORD` (gerada em [Google Senhas de App](https://myaccount.google.com/apppasswords)).
+
+---
+
+### Passo 3: Ordem de Inicialização dos Microsserviços
 Execute os serviços na seguinte sequência para garantir a resolução correta de configurações e descoberta:
 
 ```bash
@@ -361,8 +373,14 @@ O ecossistema conta com uma suíte abrangente de testes unitários e de integra�
 
 * **Cobertura de Código**: **100%** de cobertura aferida via JaCoCo em todas as camadas de negócio, controllers, listeners e repositórios.
 * **Total de Testes**: **285+ testes automatizados** com **0 falhas**.
-* Para rodar os testes e gerar relatórios de cobertura:
+* **Como executar os testes**: Como cada microsserviço é um projeto Maven independente, execute os testes navegando até o diretório do serviço desejado:
 ```bash
+# Exemplo executando no order-service:
+cd order-service
+mvn clean test jacoco:report
+
+# Ou em qualquer outro serviço (product-service, inventory-service, api-gateway, etc.):
+cd ../inventory-service
 mvn clean test jacoco:report
 ```
-Os relatórios detalhados são gerados em `target/site/jacoco/index.html` em cada projeto.
+Os relatórios detalhados de cobertura JaCoCo são gerados em `target/site/jacoco/index.html` dentro do diretório de cada serviço.
