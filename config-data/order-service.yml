@@ -47,7 +47,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: "refresh, health, circuitbreakers, prometheus"
+        include: "refresh, health, circuitbreakers, prometheus, info"
 
 logging:
   pattern:
@@ -59,6 +59,7 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
+    status-page-url-path: /swagger-ui/index.html
 order:
   enabled: true
 

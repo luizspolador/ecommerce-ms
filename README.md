@@ -302,17 +302,34 @@ POST /api/v1/product ──► [Product Service] ──► MongoDB (product-db)
 
 ---
 
-## 📚 Documentação das APIs (Swagger UI)
+## 📚 Documentação das APIs (Swagger UI) & Portais do Ecossistema
 
-Cada microsserviço disponibiliza sua interface interativa Swagger para consulta e testes:
+### 📑 Documentação Swagger / OpenAPI Direta dos Serviços
 
-* **Product Service**: `http://localhost:8083/swagger-ui.html`
-* **Order Service**: `http://localhost:8081/swagger-ui.html`
-* **Inventory Service**: `http://localhost:8082/swagger-ui.html`
-* **OpenAPI Specs (JSON)**:
-  * Product Service: `http://localhost:8083/v3/api-docs`
-  * Order Service: `http://localhost:8081/v3/api-docs`
-  * Inventory Service: `http://localhost:8082/v3/api-docs`
+Cada microsserviço de negócio disponibiliza sua documentação OpenAPI interativa (Swagger UI) em sua respectiva porta HTTP:
+
+| Microsserviço | Swagger UI Direto | OpenAPI Spec (JSON) | Porta Padrão |
+| :--- | :--- | :--- | :---: |
+| **Product Service** | [http://localhost:8083/swagger-ui/index.html](http://localhost:8083/swagger-ui/index.html) | [http://localhost:8083/v3/api-docs](http://localhost:8083/v3/api-docs) | `8083` |
+| **Order Service** | [http://localhost:8081/swagger-ui/index.html](http://localhost:8081/swagger-ui/index.html) | [http://localhost:8081/v3/api-docs](http://localhost:8081/v3/api-docs) | `8081` |
+| **Inventory Service** | [http://localhost:8082/swagger-ui/index.html](http://localhost:8082/swagger-ui/index.html) | [http://localhost:8082/v3/api-docs](http://localhost:8082/v3/api-docs) | `8082` |
+
+> [!TIP]
+> **Atenção às Portas no IntelliJ IDEA (`server.port=0`)**:
+> - Se você estiver rodando os serviços via IntelliJ com a VM Option `-Dserver.port=0`, o Spring Boot alocará uma porta dinâmica e aleatória (ex: `58801`, `58720`).
+> - Para que os serviços utilizem as **portas fixas oficiais** (`8081`, `8082`, `8083`), certifique-se de que a opção `-Dserver.port=0` **não** esteja presente em **Run ➔ Edit Configurations ➔ VM Options** ou no template Spring Boot do IntelliJ.
+> - Caso use portas dinâmicas, basta verificar a porta alocada no console do serviço (`Tomcat started on port(s): XXXXX`) ou no dashboard do **Eureka** ([http://localhost:8761](http://localhost:8761)).
+
+### Portais de Infraestrutura e Governança
+
+| Plataforma / Serviço | URL de Acesso | Credenciais Padrão | Finalidade |
+| :--- | :--- | :--- | :--- |
+| **Netflix Eureka** | [http://localhost:8761](http://localhost:8761) | *Acesso Livre* | Service Discovery & catálogo de instâncias ativas |
+| **Spring Cloud Config** | [http://localhost:8888](http://localhost:8888) | *Acesso Livre* | Servidor central de propriedades (`config-data`) |
+| **API Gateway** | [http://localhost:9001](http://localhost:9001) | *Bearer JWT* | Ponto único de entrada e roteamento reativo |
+| **Keycloak IAM** | [http://localhost:8080](http://localhost:8080) | `admin` / `admin` | Gestão de identidade, usuários, roles e tokens |
+| **RabbitMQ Management** | [http://localhost:15672](http://localhost:15672) | `guest` / `guest` | Monitoramento de exchanges, filas e dead-letters |
+| **Grafana Dashboard** | [http://localhost:3000](http://localhost:3000) | `admin` / `admin` | Telemetria, métricas Prometheus e rastreamento OTLP |
 
 ---
 

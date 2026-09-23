@@ -3,3 +3,10 @@ spring:
     name: order-service
   config:
     import: "optional:configserver:http://localhost:8888"
+
+server:
+  port: 8081
+
+eureka:
+  instance:
+    status-page-url-path: /swagger-ui/index.html

@@ -13,7 +13,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "br.com.spolador.ecommerce.inventory_service.controller")
 @Slf4j
 public class GlobalControllerAdvice {
 

@@ -34,7 +34,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: "refresh, health, prometheus"
+        include: "refresh, health, prometheus, info"
 
 logging:
   pattern:
@@ -46,6 +46,7 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
+    status-page-url-path: /swagger-ui/index.html
 
 server:
   port: 8082
