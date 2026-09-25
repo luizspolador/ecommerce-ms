@@ -13,6 +13,8 @@ public class RabbitMQConfig {
     public static final String ORDER_DLX = "order-dlx";
     public static final String ORDER_DLQ = "order-dlq";
     public static final String ORDER_DEAD_ROUTING_KEY = "order.dead";
+    public static final String PRODUCT_EVENTS_EXCHANGE = "product-events";
+    public static final String ORDER_PRODUCT_QUEUE = "order-product-queue";
 
     @Bean
     public MessageConverter messageConverter() {
@@ -67,5 +69,20 @@ public class RabbitMQConfig {
     @Bean
     public Binding deadLetterBinding(Queue deadLetterQueue, DirectExchange deadLetterExchange) {
         return BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(ORDER_DEAD_ROUTING_KEY);
+    }
+
+    @Bean
+    public TopicExchange productEventsExchange() {
+        return new TopicExchange(PRODUCT_EVENTS_EXCHANGE);
+    }
+
+    @Bean
+    public Queue orderProductQueue() {
+        return new Queue(ORDER_PRODUCT_QUEUE, true);
+    }
+
+    @Bean
+    public Binding productBinding(Queue orderProductQueue, TopicExchange productEventsExchange) {
+        return BindingBuilder.bind(orderProductQueue).to(productEventsExchange).with("product.created");
     }
 }

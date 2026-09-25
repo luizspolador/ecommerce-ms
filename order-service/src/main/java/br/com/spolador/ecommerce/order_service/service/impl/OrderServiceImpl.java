@@ -1,9 +1,11 @@
 package br.com.spolador.ecommerce.order_service.service.impl;
 
+import br.com.spolador.ecommerce.order_service.dto.OrderLineItemRequestDTO;
 import br.com.spolador.ecommerce.order_service.dto.OrderRequestDTO;
 import br.com.spolador.ecommerce.order_service.dto.OrderResponseDTO;
 import br.com.spolador.ecommerce.order_service.event.OrderCreatedDomainEvent;
 import br.com.spolador.ecommerce.order_service.event.OrderCreatedEvent;
+import br.com.spolador.ecommerce.order_service.exception.ProductNotRegisteredException;
 import br.com.spolador.ecommerce.order_service.exception.ResourceNotFoundException;
 import br.com.spolador.ecommerce.order_service.exception.ServiceUnavailableException;
 import br.com.spolador.ecommerce.order_service.mapper.OrderMapper;
@@ -12,6 +14,7 @@ import br.com.spolador.ecommerce.order_service.model.OrderLineItems;
 import br.com.spolador.ecommerce.order_service.model.OrderStatus;
 import br.com.spolador.ecommerce.order_service.model.OutboxEvent;
 import br.com.spolador.ecommerce.order_service.repository.OrderRepository;
+import br.com.spolador.ecommerce.order_service.repository.RegisteredProductRepository;
 import br.com.spolador.ecommerce.order_service.service.OrderService;
 import br.com.spolador.ecommerce.order_service.service.OutboxService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +37,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final OutboxService outboxService;
     private final ApplicationEventPublisher eventPublisher;
+    private final RegisteredProductRepository registeredProductRepository;
 
     @Value("${order.enabled:true}")
     private boolean orderEnabled;
@@ -44,6 +48,13 @@ public class OrderServiceImpl implements OrderService {
         if (!orderEnabled) {
             log.warn("Order denied. Service disabled by configuration");
             throw new ServiceUnavailableException("The ordering service is under maintenance. Try again in a few minutes");
+        }
+
+        for (final OrderLineItemRequestDTO item : orderRequest.getOrderLineItemList()) {
+            if (!registeredProductRepository.existsBySku(item.getSku())) {
+                log.warn("Order creation rejected: SKU '{}' is not registered in catalog", item.getSku());
+                throw new ProductNotRegisteredException(item.getSku());
+            }
         }
         log.info("Inserting a new order");
         final Order order = orderMapper.toOrder(orderRequest);
@@ -122,6 +133,12 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void updateOrderStatus(final String orderNumber, final OrderStatus newStatus) {
+        updateOrderStatus(orderNumber, newStatus, null);
+    }
+
+    @Override
+    @Transactional
+    public void updateOrderStatus(final String orderNumber, final OrderStatus newStatus, final String cancellationReason) {
         log.info("Updating database, order: {} -> {}", orderNumber, newStatus);
         orderRepository.findByOrderNumber(orderNumber).ifPresentOrElse(
                 order -> {
@@ -130,6 +147,9 @@ public class OrderServiceImpl implements OrderService {
                         return;
                     }
                     order.setOrderStatus(newStatus);
+                    if (cancellationReason != null) {
+                        order.setCancellationReason(cancellationReason);
+                    }
                     orderRepository.save(order);
                     log.info("Order state updated for order: {}", orderNumber);
                 },

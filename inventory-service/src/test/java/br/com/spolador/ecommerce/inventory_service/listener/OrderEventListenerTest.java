@@ -88,11 +88,11 @@ class OrderEventListenerTest {
             OrderCancelledEvent cancelledEvent = captor.getValue();
             assertThat(cancelledEvent.orderNumber()).isEqualTo(event.orderNumber());
             assertThat(cancelledEvent.email()).isEqualTo(event.email());
-            assertThat(cancelledEvent.reason()).isEqualTo("Insufficient stock for one or more products");
+            assertThat(cancelledEvent.reason()).isEqualTo("Insufficient stock for SKU 'IPHONE_15_BLACK'. Requested: 5, Available: 2");
         }
 
         @Test
-        @DisplayName("When product not found, should cancel order with insufficient stock reason")
+        @DisplayName("When product not found, should cancel order with inventory not found reason")
         void whenProductNotFound_shouldCancelOrder() {
             OrderCreatedEvent event = InventoryFactory.createOrderCreatedEvent();
             when(inventoryService.processOrderStockReduction(eq(event.orderNumber()), anyList()))
@@ -106,7 +106,7 @@ class OrderEventListenerTest {
             OrderCancelledEvent cancelledEvent = captor.getValue();
             assertThat(cancelledEvent.orderNumber()).isEqualTo(event.orderNumber());
             assertThat(cancelledEvent.email()).isEqualTo(event.email());
-            assertThat(cancelledEvent.reason()).isEqualTo("Insufficient stock for one or more products");
+            assertThat(cancelledEvent.reason()).isEqualTo("Inventory not found with sku: 'UNKNOWN'");
         }
 
         @Test

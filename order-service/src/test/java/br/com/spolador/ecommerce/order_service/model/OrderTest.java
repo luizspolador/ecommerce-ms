@@ -21,6 +21,7 @@ class OrderTest {
         order.setOrderNumber("ORD-999");
         order.setUserId("user-1");
         order.setOrderStatus(OrderStatus.CREATED);
+        order.setCancellationReason(null);
         order.setOrderLineItemList(List.of());
         order.setCreatedAt(now);
         order.setUpdatedAt(now);
@@ -29,6 +30,7 @@ class OrderTest {
         assertThat(order.getOrderNumber()).isEqualTo("ORD-999");
         assertThat(order.getUserId()).isEqualTo("user-1");
         assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CREATED);
+        assertThat(order.getCancellationReason()).isNull();
         assertThat(order.getOrderLineItemList()).isEmpty();
         assertThat(order.getCreatedAt()).isEqualTo(now);
         assertThat(order.getUpdatedAt()).isEqualTo(now);
@@ -38,6 +40,7 @@ class OrderTest {
                 .orderNumber("ORD-1")
                 .userId("user-2")
                 .orderStatus(OrderStatus.CONFIRMED)
+                .cancellationReason(null)
                 .orderLineItemList(List.of())
                 .createdAt(now)
                 .updatedAt(now)
@@ -47,9 +50,10 @@ class OrderTest {
         assertThat(built.getCreatedAt()).isEqualTo(now);
         assertThat(built.getUpdatedAt()).isEqualTo(now);
 
-        final Order allArgs = new Order(2L, "ORD-2", "user-3", OrderStatus.CANCELLED, List.of(), now, now);
+        final Order allArgs = new Order(2L, "ORD-2", "user-3", OrderStatus.CANCELLED, "Insufficient stock", List.of(), now, now);
         assertThat(allArgs.getId()).isEqualTo(2L);
         assertThat(allArgs.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(allArgs.getCancellationReason()).isEqualTo("Insufficient stock");
         assertThat(allArgs.getCreatedAt()).isEqualTo(now);
         assertThat(allArgs.getUpdatedAt()).isEqualTo(now);
     }

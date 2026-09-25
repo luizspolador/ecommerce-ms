@@ -16,5 +16,6 @@ public class OrderResponseDTO {
     private Long id;
     private String orderNumber;
     private OrderStatus orderStatus;
+    private String cancellationReason;
     private List<OrderLineItemResponseDTO> orderLineItemList;
 }

@@ -48,6 +48,17 @@ public class GlobalControllerAdvice {
         return problemDetail;
     }
 
+    @ExceptionHandler(ProductNotRegisteredException.class)
+    public ProblemDetail handleProductNotRegisteredException(ProductNotRegisteredException ex, WebRequest req) {
+        log.warn("Product not registered in catalog. Path: {}, Message: {}", req.getDescription(false), ex.getMessage());
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problemDetail.setTitle("Product Not Registered");
+        problemDetail.setType(URI.create("https://api.ecommerce.com/errors/product-not-registered"));
+        problemDetail.setProperty("Timestamp", Instant.now());
+        problemDetail.setProperty("Sku", ex.getSku());
+        return problemDetail;
+    }
+
     @ExceptionHandler(ServiceUnavailableException.class)
     public ProblemDetail handleServiceUnavailableException(ServiceUnavailableException ex, WebRequest req) {
         log.warn("Service unavailable. Path: {}, Message: {}", req.getDescription(false), ex.getMessage());

@@ -28,6 +28,9 @@ public class Order {
     @Enumerated(EnumType.STRING)
     private OrderStatus orderStatus;
 
+    @Column(name = "cancellation_reason")
+    private String cancellationReason;
+
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "order_id")
     private List<OrderLineItems> orderLineItemList;

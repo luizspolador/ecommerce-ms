@@ -66,24 +66,28 @@ class OrderDTOTest {
     @DisplayName("OrderResponseDTO tests")
     void testOrderResponseDTO() {
         OrderLineItemResponseDTO item = new OrderLineItemResponseDTO(1L, "SKU-1", BigDecimal.valueOf(10.0), 2);
-        OrderResponseDTO dto1 = new OrderResponseDTO(1L, "ORD-1", OrderStatus.CREATED, List.of(item));
-        OrderResponseDTO dto2 = new OrderResponseDTO(1L, "ORD-1", OrderStatus.CREATED, List.of(item));
-        OrderResponseDTO dto3 = new OrderResponseDTO(2L, "ORD-2", OrderStatus.CONFIRMED, List.of());
+        OrderResponseDTO dto1 = new OrderResponseDTO(1L, "ORD-1", OrderStatus.CREATED, null, List.of(item));
+        OrderResponseDTO dto2 = new OrderResponseDTO(1L, "ORD-1", OrderStatus.CREATED, null, List.of(item));
+        OrderResponseDTO dto3 = new OrderResponseDTO(2L, "ORD-2", OrderStatus.CONFIRMED, null, List.of());
 
         assertThat(dto1.getId()).isEqualTo(1L);
         assertThat(dto1.getOrderNumber()).isEqualTo("ORD-1");
         assertThat(dto1.getOrderStatus()).isEqualTo(OrderStatus.CREATED);
+        assertThat(dto1.getCancellationReason()).isNull();
         assertThat(dto1.getOrderLineItemList()).hasSize(1);
 
         dto1.setId(10L);
         dto1.setOrderNumber("ORD-10");
         dto1.setOrderStatus(OrderStatus.CANCELLED);
+        dto1.setCancellationReason("Out of stock");
         assertThat(dto1.getId()).isEqualTo(10L);
+        assertThat(dto1.getCancellationReason()).isEqualTo("Out of stock");
 
         OrderResponseDTO built = OrderResponseDTO.builder()
                 .id(5L)
                 .orderNumber("ORD-5")
                 .orderStatus(OrderStatus.CONFIRMED)
+                .cancellationReason(null)
                 .orderLineItemList(List.of())
                 .build();
         assertThat(built.getId()).isEqualTo(5L);
@@ -92,7 +96,7 @@ class OrderDTOTest {
         noArgs.setId(20L);
         assertThat(noArgs.getId()).isEqualTo(20L);
 
-        assertThat(dto2).isEqualTo(new OrderResponseDTO(1L, "ORD-1", OrderStatus.CREATED, List.of(item)));
+        assertThat(dto2).isEqualTo(new OrderResponseDTO(1L, "ORD-1", OrderStatus.CREATED, null, List.of(item)));
         assertThat(dto2).isNotEqualTo(dto3);
         assertThat(dto2.hashCode()).isNotEqualTo(dto3.hashCode());
         assertThat(dto2.toString()).contains("ORD-1");

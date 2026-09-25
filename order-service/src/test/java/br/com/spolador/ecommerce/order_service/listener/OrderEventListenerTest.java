@@ -71,7 +71,7 @@ class OrderEventListenerTest {
 
             orderEventListener.handleOrderCancelled(event);
 
-            verify(orderService).updateOrderStatus(event.orderNumber(), OrderStatus.CANCELLED);
+            verify(orderService).updateOrderStatus(event.orderNumber(), OrderStatus.CANCELLED, event.reason());
         }
     }
 }

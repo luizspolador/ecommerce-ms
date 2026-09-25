@@ -57,8 +57,8 @@ flowchart TD
     end
 
     subgraph OrderDomain ["🛒 Domínio: Pedidos & Orquestração"]
-        OrderService["<big><b>Order Service</b></big> (Port: 8081)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• Ciclo de Vida: CREATED ➔ CONFIRMED / CANCELLED<br/>• Transactional Outbox (t_outbox) + MessageRelayer<br/>• Resilience4j (Circuit Breaker & Retry com Backoff)<br/>• Proteção contra IDOR / BOLA (Validação de Ownership)<br/>• Endpoints: POST /api/v1/order | GET /api/v1/order/{id}"]
-        PostgresOrder[("<b>PostgreSQL 16</b><br/>order-db: 5432<br/>• t_orders / t_order_items<br/>• t_outbox (Outbox Pattern)")]
+        OrderService["<big><b>Order Service</b></big> (Port: 8081)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• Projeção Local: t_registered_product (Sync via EDA)<br/>• Validação Fail-Fast: Rejeita SKU não cadastrado (HTTP 400)<br/>• Ciclo de Vida: CREATED ➔ CONFIRMED / CANCELLED<br/>• Persistência do Motivo de Cancelamento (cancellationReason)<br/>• Transactional Outbox (t_outbox) + MessageRelayer<br/>• Resilience4j (Circuit Breaker & Retry com Backoff)<br/>• Proteção contra IDOR / BOLA (Validação de Ownership)<br/>• Endpoints: POST /api/v1/order | GET /api/v1/order/{id}"]
+        PostgresOrder[("<b>PostgreSQL 16</b><br/>order-db: 5432<br/>• t_orders / t_order_line_items<br/>• t_registered_product (Projeção CQRS)<br/>• outbox_events (Outbox Pattern)")]
     end
 
     %% ==========================================
@@ -69,6 +69,7 @@ flowchart TD
         ExOrder["<b>TopicExchange: 'order-events'</b>"]
 
         QProduct["<b>Queue: 'inventory-product-queue'</b><br/>Routing: product.created"]
+        QOrderProd["<b>Queue: 'order-product-queue'</b><br/>Routing: product.created"]
         QInv["<b>Queue: 'inventory-queue'</b><br/>Routing: order.created (DLX: inventory-dlx)"]
         QConfirmed["<b>Queue: 'order-confirmed-queue'</b><br/>Routing: order.confirmed (DLX: order-dlx)"]
         QCancelled["<b>Queue: 'order-cancelled-queue'</b><br/>Routing: order.cancelled (DLX: order-dlx)"]
@@ -109,7 +110,9 @@ flowchart TD
 
     ProductService -->|"<b><font color='#000000'>1. Publica 'product.created'</font></b>"| ExProduct
     ExProduct -->|"<b><font color='#000000'>Routing key: product.created</font></b>"| QProduct
-    QProduct -->|"<b><font color='#000000'>2. Atualiza projeção local em t_registered_product</font></b>"| InventoryService
+    ExProduct -->|"<b><font color='#000000'>Routing key: product.created</font></b>"| QOrderProd
+    QProduct -->|"<b><font color='#000000'>2a. Atualiza projeção local em t_registered_product</font></b>"| InventoryService
+    QOrderProd -->|"<b><font color='#000000'>2b. Atualiza projeção local em t_registered_product</font></b>"| OrderService
 
     OrderService -->|"<b><font color='#000000'>1. Transactional Outbox publica 'order.created'</font></b>"| ExOrder
     ExOrder -->|"<b><font color='#000000'>Routing key: order.created</font></b>"| QInv
@@ -177,7 +180,7 @@ flowchart TD
     class MySQLInv dbMySQL;
     class PostgresOrder dbPostgres;
     class ExProduct,ExOrder exchNode;
-    class QProduct,QInv,QConfirmed,QCancelled,QNotify queueNode;
+    class QProduct,QOrderProd,QInv,QConfirmed,QCancelled,QNotify queueNode;
     class DLQ dlqNode;
     class NotificationService notifNode;
     class MailServer mailNode;
@@ -246,6 +249,9 @@ flowchart TD
 ### 6. Order Service (`order-service`)
 * **Porta**: `8081` | **Banco**: PostgreSQL (`order-db:5432`)
 * **Função**: Responsável pelo ciclo de vida das ordens de compra.
+  * **Projeção Local de Produtos**: Consome eventos `product.created` via fila `order-product-queue` e mantém a tabela `t_registered_product`.
+  * **Validação Fail-Fast de Catálogo**: Valida imediatamente se todos os SKUs informados existem no catálogo registrado, rejeitando requisições com SKUs incorretos com `ProductNotRegisteredException` (HTTP 400 Bad Request) antes de abrir a transação do pedido.
+  * **Rastreabilidade e Motivo de Cancelamento**: Persiste a justificativa detalhada de cancelamento (`cancellationReason`) na tabela `t_orders`, expondo-a no `OrderResponseDTO` para consulta transparente via `GET /api/v1/order/{id}`.
   * **Transactional Outbox**: Persiste pedido e evento na mesma transação atômica relacional, garantindo entrega confiável de mensagens mesmo em falhas do broker.
   * **Scheduler de Reenvio**: Processa eventos outbox pendentes em caso de indisponibilidade temporária do RabbitMQ.
   * **Proteção contra BOLA/IDOR**: Valida que clientes comuns só acessem seus próprios pedidos (`jwt.getSubject()`), mantendo visão global apenas para `ROLE_ADMIN`.
@@ -262,8 +268,8 @@ flowchart TD
 ### Fluxo 1: Sincronização de Catálogo (EDA - Event-Carried State Transfer)
 1. Um administrador cadastra um novo produto via `POST /api/v1/product`.
 2. O **Product Service** grava no MongoDB e publica o evento `ProductCreatedEvent` no RabbitMQ (`product.created`).
-3. O **Inventory Service** consome a mensagem na fila `inventory-product-queue` e salva/atualiza a projeção na tabela `t_registered_product`.
-4. Ao cadastrar estoque (`POST /api/v1/inventory`), o sistema valida se o SKU existe na projeção local, garantindo consistência eventual desacoplada e de alta performance.
+3. O **Inventory Service** e o **Order Service** consomem a mensagem em suas respectivas filas (`inventory-product-queue` e `order-product-queue`) e sincronizam suas projeções locais (`t_registered_product`).
+4. Ao cadastrar estoque (`POST /api/v1/inventory`) ou criar pedidos (`POST /api/v1/order`), os sistemas validam o SKU em suas projeções locais com altíssima performance e sem chamadas HTTP bloqueantes.
 
 ```
 POST /api/v1/product ──► [Product Service] ──► MongoDB (product-db)
@@ -271,25 +277,29 @@ POST /api/v1/product ──► [Product Service] ──► MongoDB (product-db)
                       Publica 'product.created'
                                │
                                ▼
-                        [RabbitMQ Broker]
-                               │
-                    Queue: inventory-product-queue
-                               │
-                               ▼
-                     [Inventory Service] ──► MySQL (t_registered_product)
+                         [RabbitMQ Broker]
+                        /                 \
+     Queue: inventory-product-queue     Queue: order-product-queue
+                      /                     \
+                     ▼                       ▼
+    [Inventory Service] ──► MySQL        [Order Service] ──► PostgreSQL
+   (t_registered_product)               (t_registered_product)
 ```
 
 ---
 
 ### Fluxo 2: Pedidos, Orquestração e Compensação (Saga Coreografada & Outbox)
 1. O cliente autenticado cria um pedido via `POST /api/v1/order` no Gateway.
-2. O **Order Service** persiste o pedido como `CREATED` e salva o evento de domínio na tabela outbox na mesma transação atômica no PostgreSQL.
-3. O evento `order.created` é publicado no RabbitMQ.
-4. O **Inventory Service** consome a mensagem, valida a idempotência (`ProcessedOrder`) e executa o lock pessimista dos itens.
+2. O **Order Service** valida os SKUs na projeção local (rejeita imediatamente com **HTTP 400** se algum SKU não existir).
+3. Se válido, persiste o pedido como `CREATED`, salva o evento no Transactional Outbox e retorna `201 Created`.
+4. O evento `order.created` é publicado no RabbitMQ.
+5. O **Inventory Service** consome a mensagem, valida a idempotência (`ProcessedOrder`) e executa o lock pessimista dos itens:
    * **Se houver estoque suficiente:** debita o saldo, registra o pedido como processado e publica `order.confirmed`.
-   * **Se faltar estoque para qualquer item:** executa rollback transacional total e publica `order.cancelled`.
-5. O **Order Service** consome a resposta e atualiza o pedido para `CONFIRMED` ou `CANCELLED`.
-6. O **Notification Service** consome o evento final e dispara o e-mail transacional correspondente para o cliente.
+   * **Se faltar estoque para qualquer item:** executa rollback transacional e publica `order.cancelled` com o motivo específico (`"Insufficient stock for SKU '...'"` ou `"Inventory not found with sku: '...'"`).
+6. O **Order Service** consome a resposta:
+   * Se confirmado: atualiza o pedido para `CONFIRMED`.
+   * Se cancelado: atualiza o pedido para `CANCELLED` e salva o `cancellationReason`.
+7. O **Notification Service** consome o evento final e dispara o e-mail transacional correspondente para o cliente.
 
 ---
 
@@ -337,7 +347,7 @@ Cada microsserviço de negócio disponibiliza sua documentação OpenAPI interat
 
 ### Pré-requisitos
 * **Java 21 JDK** instalado e configurado.
-* **Maven 3.9+** instalado.
+* **Maven 3.9+** instalado *(opcional caso utilize o **Maven Wrapper** incluso em cada microsserviço)*.
 * **Docker & Docker Compose** em execução.
 
 ---
@@ -389,15 +399,90 @@ cd notification-service && mvn spring-boot:run
 O ecossistema conta com uma suíte abrangente de testes unitários e de integração utilizando **JUnit 5**, **Mockito**, **Spring Security Test** e **JaCoCo**:
 
 * **Cobertura de Código**: **100%** de cobertura aferida via JaCoCo em todas as camadas de negócio, controllers, listeners e repositórios.
-* **Total de Testes**: **285+ testes automatizados** com **0 falhas**.
-* **Como executar os testes**: Como cada microsserviço é um projeto Maven independente, execute os testes navegando até o diretório do serviço desejado:
+* **Total de Testes**: **295+ testes automatizados** com **0 falhas**.
+
+### ⚙️ Como Executar os Testes
+
+Como cada microsserviço é um projeto independente, navegue até a pasta do serviço desejado e execute os testes:
+
+#### 1. Com Maven Global Instalado (`mvn`)
+Caso possua o Maven configurado nas variáveis de ambiente (`PATH`):
 ```bash
-# Exemplo executando no order-service:
+# Exemplo no order-service:
 cd order-service
 mvn clean test jacoco:report
 
-# Ou em qualquer outro serviço (product-service, inventory-service, api-gateway, etc.):
+# Ou no inventory-service:
 cd ../inventory-service
 mvn clean test jacoco:report
 ```
-Os relatórios detalhados de cobertura JaCoCo são gerados em `target/site/jacoco/index.html` dentro do diretório de cada serviço.
+
+#### 2. Sem Maven Instalado (Usando o Maven Wrapper Incluso)
+Caso **não** tenha o Maven instalado no computador, utilize o **Maven Wrapper** pré-configurado na raiz de cada microsserviço:
+
+* **No PowerShell / Prompt de Comando (Windows)**:
+  ```powershell
+  # Exemplo no inventory-service:
+  cd inventory-service
+  .\mvnw.cmd clean test jacoco:report
+
+  # Exemplo no order-service:
+  cd ../order-service
+  .\mvnw.cmd clean test jacoco:report
+  ```
+
+* **No Git Bash / Linux / macOS**:
+  ```bash
+  # Exemplo no inventory-service:
+  cd inventory-service
+  ./mvnw clean test jacoco:report
+
+  # Exemplo no order-service:
+  cd ../order-service
+  ./mvnw clean test jacoco:report
+  ```
+
+---
+
+### 📊 Como Visualizar o Relatório de Cobertura JaCoCo (HTML)
+
+Após a execução do comando `jacoco:report`, o relatório interativo e detalhado é gerado no diretório `target/site/jacoco/index.html` do respectivo serviço. Você pode abri-lo de três formas:
+
+#### A. Diretamente no Navegador (Chrome, Edge, Firefox, etc.)
+Copie e cole a URI direta com o protocolo `file:///` na barra de endereços do seu navegador:
+* **Inventory Service**:
+  ```text
+  file:///C:/microservices-ecommerce/inventory-service/target/site/jacoco/index.html
+  ```
+* **Order Service**:
+  ```text
+  file:///C:/microservices-ecommerce/order-service/target/site/jacoco/index.html
+  ```
+* **Product Service**:
+  ```text
+  file:///C:/microservices-ecommerce/product-service/target/site/jacoco/index.html
+  ```
+* **API Gateway**:
+  ```text
+  file:///C:/microservices-ecommerce/api-gateway/target/site/jacoco/index.html
+  ```
+
+#### B. Pelo PowerShell
+Estando no diretório do microsserviço:
+```powershell
+# Abre automaticamente o relatório no navegador padrão:
+Start-Process "target\site\jacoco\index.html"
+
+# Ou informando a URI direta completa:
+Start-Process "file:///C:/microservices-ecommerce/inventory-service/target/site/jacoco/index.html"
+```
+
+#### C. Pelo Git Bash
+Estando no diretório do microsserviço:
+```bash
+# Abre automaticamente no navegador padrão:
+explorer "target/site/jacoco/index.html"
+
+# Ou via comando start:
+start "target/site/jacoco/index.html"
+```

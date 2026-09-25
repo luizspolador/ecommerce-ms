@@ -13,4 +13,5 @@ public interface OrderService {
     OrderResponseDTO getOrderById(Long id, String userId, boolean isAdmin);
     void deleteOrder(Long id);
     void updateOrderStatus(String orderNumber, OrderStatus newStatus);
+    void updateOrderStatus(String orderNumber, OrderStatus newStatus, String cancellationReason);
 }

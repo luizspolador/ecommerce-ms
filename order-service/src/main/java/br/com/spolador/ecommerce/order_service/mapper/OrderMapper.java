@@ -17,6 +17,7 @@ public interface OrderMapper {
     @Mapping(target = "orderStatus", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "cancellationReason", ignore = true)
     Order toOrder(final OrderRequestDTO orderRequest);
 
     @Mapping(target = "id", ignore = true)

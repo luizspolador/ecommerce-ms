@@ -32,7 +32,7 @@ public class OrderEventListener {
             log.info("OrderCancelledEvent with orderNumber null.");
             return;
         }
-        orderService.updateOrderStatus(event.orderNumber(), OrderStatus.CANCELLED);
+        orderService.updateOrderStatus(event.orderNumber(), OrderStatus.CANCELLED, event.reason());
 
     }
 }

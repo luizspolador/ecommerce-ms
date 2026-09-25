@@ -148,4 +148,21 @@ class GlobalControllerAdviceTest {
         assertThat(problemDetail.getType()).isEqualTo(URI.create("https://api.ecommerce.com/errors/forbidden"));
         assertThat(problemDetail.getProperties()).containsKey("Timestamp");
     }
+
+    @Test
+    @DisplayName("handleProductNotRegisteredException should return 400 ProblemDetail with SKU")
+    void handleProductNotRegisteredException_shouldReturnBadRequestProblemDetailWithSku() {
+        ProductNotRegisteredException ex = new ProductNotRegisteredException("UNKNOWN-SKU");
+        when(webRequest.getDescription(false)).thenReturn("uri=/api/v1/order");
+
+        ProblemDetail problemDetail = advice.handleProductNotRegisteredException(ex, webRequest);
+
+        assertThat(problemDetail).isNotNull();
+        assertThat(problemDetail.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(problemDetail.getTitle()).isEqualTo("Product Not Registered");
+        assertThat(problemDetail.getDetail()).contains("UNKNOWN-SKU");
+        assertThat(problemDetail.getType()).isEqualTo(URI.create("https://api.ecommerce.com/errors/product-not-registered"));
+        assertThat(problemDetail.getProperties()).containsEntry("Sku", "UNKNOWN-SKU");
+        assertThat(problemDetail.getProperties()).containsKey("Timestamp");
+    }
 }

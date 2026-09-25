@@ -48,6 +48,9 @@ class OrderServiceImplTest {
     @Mock
     private OutboxService outboxService;
 
+    @Mock
+    private br.com.spolador.ecommerce.order_service.repository.RegisteredProductRepository registeredProductRepository;
+
     @InjectMocks
     private OrderServiceImpl orderService;
 
@@ -70,6 +73,20 @@ class OrderServiceImplTest {
         }
 
         @Test
+        @DisplayName("When sku is not registered, should throw ProductNotRegisteredException")
+        void whenSkuNotRegistered_shouldThrowException() {
+            ReflectionTestUtils.setField(orderService, "orderEnabled", true);
+            OrderRequestDTO request = OrderFactory.createOrderRequestDTO();
+            when(registeredProductRepository.existsBySku(anyString())).thenReturn(false);
+
+            assertThatThrownBy(() -> orderService.createOrder(request, "user-1"))
+                    .isInstanceOf(br.com.spolador.ecommerce.order_service.exception.ProductNotRegisteredException.class)
+                    .hasMessageContaining("is not registered in catalog");
+
+            verifyNoInteractions(orderRepository);
+        }
+
+        @Test
         @DisplayName("When orderEnabled is true, should persist order, save to outbox with processed=false, publish domain event, and return DTO")
         void whenOrderEnabled_shouldCreateOrder() {
             ReflectionTestUtils.setField(orderService, "orderEnabled", true);
@@ -79,6 +96,7 @@ class OrderServiceImplTest {
             OrderResponseDTO expectedResponse = OrderFactory.createOrderResponseDTO();
             OutboxEvent outboxEvent = OrderFactory.createOutboxEvent(false);
 
+            when(registeredProductRepository.existsBySku(anyString())).thenReturn(true);
             when(orderMapper.toOrder(request)).thenReturn(orderToSave);
             when(orderRepository.save(orderToSave)).thenReturn(savedOrder);
             when(orderMapper.toOrderResponse(savedOrder)).thenReturn(expectedResponse);
@@ -101,6 +119,7 @@ class OrderServiceImplTest {
             Order savedOrder = OrderFactory.createOrder();
             OrderResponseDTO expectedResponse = OrderFactory.createOrderResponseDTO();
 
+            when(registeredProductRepository.existsBySku(anyString())).thenReturn(true);
             when(orderMapper.toOrder(request)).thenReturn(orderToSave);
             when(orderRepository.save(orderToSave)).thenReturn(savedOrder);
             when(orderMapper.toOrderResponse(savedOrder)).thenReturn(expectedResponse);
@@ -266,6 +285,20 @@ class OrderServiceImplTest {
             orderService.updateOrderStatus(order.getOrderNumber(), OrderStatus.CONFIRMED);
 
             assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CONFIRMED);
+            verify(orderRepository).findByOrderNumber(order.getOrderNumber());
+            verify(orderRepository).save(order);
+        }
+
+        @Test
+        @DisplayName("When order found and reason provided, should update status, set reason, and save")
+        void whenOrderFoundWithReason_shouldUpdateStatusAndReason() {
+            Order order = OrderFactory.createOrder();
+            when(orderRepository.findByOrderNumber(order.getOrderNumber())).thenReturn(Optional.of(order));
+
+            orderService.updateOrderStatus(order.getOrderNumber(), OrderStatus.CANCELLED, "Insufficient stock");
+
+            assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+            assertThat(order.getCancellationReason()).isEqualTo("Insufficient stock");
             verify(orderRepository).findByOrderNumber(order.getOrderNumber());
             verify(orderRepository).save(order);
         }

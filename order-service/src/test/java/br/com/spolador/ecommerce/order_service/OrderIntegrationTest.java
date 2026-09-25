@@ -77,6 +77,9 @@ class OrderIntegrationTest {
     private OutboxRepository outboxRepository;
 
     @MockitoBean
+    private br.com.spolador.ecommerce.order_service.repository.RegisteredProductRepository registeredProductRepository;
+
+    @MockitoBean
     private RabbitTemplate rabbitTemplate;
 
     @MockitoBean
@@ -105,6 +108,7 @@ class OrderIntegrationTest {
                 .build();
         TransactionStatus txStatus = mock(TransactionStatus.class);
         when(transactionManager.getTransaction(any())).thenReturn(txStatus);
+        when(registeredProductRepository.existsBySku(anyString())).thenReturn(true);
     }
 
     @Nested
@@ -178,6 +182,23 @@ class OrderIntegrationTest {
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.status").value(400))
                     .andExpect(jsonPath("$.title").value("Validation error"));
+
+            verify(orderRepository, never()).save(any(Order.class));
+        }
+
+        @Test
+        @DisplayName("Should return 400 Bad Request when SKU is not registered")
+        void givenUnregisteredSku_whenCreateOrder_thenReturns400() throws Exception {
+            OrderRequestDTO requestDTO = OrderFactory.createOrderRequestDTO();
+            when(registeredProductRepository.existsBySku(anyString())).thenReturn(false);
+
+            mockMvc.perform(post(BASE_PATH)
+                            .with(jwt().jwt(j -> j.subject("user-123")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(requestDTO)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.title").value("Product Not Registered"));
 
             verify(orderRepository, never()).save(any(Order.class));
         }
@@ -370,7 +391,8 @@ class OrderIntegrationTest {
             orderEventListener.handleOrderCancelled(event);
 
             verify(orderRepository).findByOrderNumber(event.orderNumber());
-            verify(orderRepository).save(argThat(savedOrder -> savedOrder.getOrderStatus() == OrderStatus.CANCELLED));
+            verify(orderRepository).save(argThat(savedOrder -> savedOrder.getOrderStatus() == OrderStatus.CANCELLED
+                    && "Insufficient stock".equals(savedOrder.getCancellationReason())));
         }
     }
 }

@@ -34,7 +34,7 @@ public class OrderEventListener {
             }
         } catch (InsufficientStockException | ResourceNotFoundException e) {
             log.warn("Insufficient stock or product not found for order {}: {}", event.orderNumber(), e.getMessage());
-            cancelOrder(event, "Insufficient stock for one or more products");
+            cancelOrder(event, e.getMessage());
         } catch (Exception e) {
             log.error("Unexpected error during inventory processing for order {}: {}", event.orderNumber(), e.getMessage());
             cancelOrder(event, "Technical error during inventory processing");
