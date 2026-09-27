@@ -10,6 +10,7 @@ spring:
     mongodb:
       host: localhost
       port: 27017
+      auto-index-creation: true
       database: product-db
       username: root
       password: password

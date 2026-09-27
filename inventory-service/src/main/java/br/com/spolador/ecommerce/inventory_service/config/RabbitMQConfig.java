@@ -25,7 +25,10 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue inventoryQueue() {
-        return new Queue(INVENTORY_QUEUE, true);
+        return QueueBuilder.durable(INVENTORY_QUEUE)
+                .withArgument("x-dead-letter-exchange", INVENTORY_DLX)
+                .withArgument("x-dead-letter-routing-key", INVENTORY_DEAD_ROUTING_KEY)
+                .build();
     }
 
     @Bean

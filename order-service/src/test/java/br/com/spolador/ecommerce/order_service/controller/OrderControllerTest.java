@@ -148,6 +148,20 @@ class OrderControllerTest {
         }
 
         @Test
+        @DisplayName("When user has ROLE_ADMIN role prefixed, should call getOrders with isAdmin=true")
+        void whenRoleAdminPrefixed_shouldCallWithIsAdminTrue() throws Exception {
+            when(jwt.getSubject()).thenReturn("admin-user");
+            when(jwt.getClaim("realm_access")).thenReturn(Map.of("roles", List.of("ROLE_ADMIN")));
+            when(orderService.getOrders("admin-user", true)).thenReturn(List.of(OrderFactory.createOrderResponseDTO()));
+
+            mockMvc.perform(get(BASE_PATH))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(1)));
+
+            verify(orderService).getOrders("admin-user", true);
+        }
+
+        @Test
         @DisplayName("When user does not have ADMIN role, should call getOrders with isAdmin=false")
         void whenNoAdminRole_shouldCallWithIsAdminFalse() throws Exception {
             when(jwt.getSubject()).thenReturn("regular-user");

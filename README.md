@@ -47,8 +47,8 @@ flowchart TD
     %% MICROSSERVIÇOS DE NEGÓCIO E PERSISTÊNCIA
     %% ==========================================
     subgraph ProductDomain ["📦 Domínio: Catálogo de Produtos"]
-        ProductService["<big><b>Product Service</b></big> (Port: 8083)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• CRUD Catálogo & Documentação Swagger<br/>• Endpoints: POST /api/v1/product | GET /api/v1/product<br/>• Emissor de 'ProductCreatedEvent'"]
-        MongoDB[("<b>MongoDB 7.0</b><br/>product-db: 27017<br/>Collection: 'products'")]
+        ProductService["<big><b>Product Service</b></big> (Port: 8083)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• CRUD Catálogo (GET/POST/PUT/DELETE) & Swagger<br/>• Validação de Unicidade de SKU (HTTP 409)<br/>• Emissor de 'ProductCreatedEvent'"]
+        MongoDB[("<b>MongoDB 7.0</b><br/>product-db: 27017<br/>Collection: 'product'")]
     end
 
     subgraph InventoryDomain ["📊 Domínio: Estoque & Validação"]
@@ -73,7 +73,7 @@ flowchart TD
         QInv["<b>Queue: 'inventory-queue'</b><br/>Routing: order.created (DLX: inventory-dlx)"]
         QConfirmed["<b>Queue: 'order-confirmed-queue'</b><br/>Routing: order.confirmed (DLX: order-dlx)"]
         QCancelled["<b>Queue: 'order-cancelled-queue'</b><br/>Routing: order.cancelled (DLX: order-dlx)"]
-        QNotify["<b>Queue: 'notification-queue'</b><br/>Routing: order.* (DLX: notification-dlx)"]
+        QNotify["<b>Queue: 'notification-queue'</b><br/>Routing: order.confirmed / order.cancelled (DLX: notification-dlx)"]
 
         DLQ["<b>Dead Letter Queues (DLQ)</b><br/>• order-dlq | inventory-dlq | notification-dlq<br/>• Retenção e auditoria após esgotamento de retries"]
     end
@@ -121,7 +121,7 @@ flowchart TD
     InventoryService -->|"<b><font color='#000000'>3. Publica resultado da validação</font></b>"| ExOrder
     ExOrder -->|"<b><font color='#000000'>Routing key: order.confirmed</font></b>"| QConfirmed
     ExOrder -->|"<b><font color='#000000'>Routing key: order.cancelled</font></b>"| QCancelled
-    ExOrder -->|"<b><font color='#000000'>Routing key: order.*</font></b>"| QNotify
+    ExOrder -->|"<b><font color='#000000'>Routing keys: order.confirmed / order.cancelled</font></b>"| QNotify
 
     QConfirmed -->|"<b><font color='#000000'>4a. Atualiza pedido para CONFIRMED</font></b>"| OrderService
     QCancelled -->|"<b><font color='#000000'>4b. Atualiza pedido para CANCELLED</font></b>"| OrderService
@@ -232,16 +232,23 @@ flowchart TD
 * **Função**: Ponto de entrada unificado para clientes. Atua como OAuth2 Resource Server validando tokens JWT emitidos pelo Keycloak, converte roles (`ADMIN`, `USER`), aplica segurança perimetral e repassa as credenciais via *Token Relay* aos serviços internos.
 
 ### 4. Product Service (`product-service`)
-* **Porta**: `8083` | **Banco**: MongoDB (`product-db:27017`)
-* **Função**: Gerencia o catálogo de produtos da plataforma (criação, consulta, atualização e remoção).
-  * **Sincronização EDA**: Ao criar um produto, publica o evento `ProductCreatedEvent` na exchange `product-events` (`routing key: product.created`) para atualização imediata dos estoques.
-  * Possui endpoints de leitura públicos e operações de escrita restritas a administradores (`ROLE_ADMIN`).
+* **Porta**: `8083` | **Banco**: MongoDB (`product-db:27017` / Collection: `product`)
+* **Função**: Gerencia o catálogo de produtos da plataforma (operações completas de CRUD).
+  * **Validação de Unicidade de SKU**: O SKU é a chave identificadora universal do produto no ecossistema. O serviço garante unicidade com índice exclusivo no MongoDB (`@Indexed(unique = true)`) e validação prévia na criação (`POST`) e atualização (`PUT`), retornando `SkuAlreadyExistsException` (**HTTP 409 Conflict**) caso haja tentativa de duplicação.
+  * **Sincronização EDA**: Ao criar um novo produto com sucesso, publica o evento `ProductCreatedEvent` na exchange `product-events` (`routing key: product.created`) para replicação assíncrona nas projeções dos demais serviços.
+  * **Endpoints Disponíveis**:
+    * `POST /api/v1/product` — Cadastro de novo produto (`ROLE_ADMIN`, valida SKU único)
+    * `GET /api/v1/product` — Listagem paginada de todos os produtos (público)
+    * `GET /api/v1/product/{id}` — Busca de produto por ID (público)
+    * `PUT /api/v1/product/{id}` — Atualização cadastral (`ROLE_ADMIN`, valida se SKU pertence a outro produto)
+    * `DELETE /api/v1/product/{id}` — Remoção de produto do catálogo (`ROLE_ADMIN`)
 
 ### 5. Inventory Service (`inventory-service`)
 * **Porta**: `8082` | **Banco**: MySQL (`inventory-db:3307`)
 * **Função**: Gerencia o estoque de produtos por código SKU.
   * **Projeção Local de Produtos**: Consome eventos de produtos criados e mantém a tabela `t_registered_product`.
   * **Validação de Catálogo**: Só permite cadastro ou alteração de estoque para produtos devidamente registrados no catálogo, rejeitando SKUs inexistentes com `ProductNotRegisteredException` (HTTP 400).
+  * **Validação de Unicidade de SKU**: Cada produto possui um único registro de estoque. Tentativas de cadastrar ou atualizar para um SKU já existente em outro registro de inventário são rejeitadas com `SkuAlreadyExistsException` (HTTP 409 Conflict).
   * **Baixa de Estoque Atômica com Lock Pessimista**: `@Lock(LockModeType.PESSIMISTIC_WRITE)` (`SELECT ... FOR UPDATE`) com ordenação alfabética de SKUs para prevenção de deadlocks.
   * **Consumidor Idempotente**: Controle via tabela `ProcessedOrder`, evitando duplicação de baixas por reprocessamento de mensagens.
   * **Endpoints de Baixa Direta**: Suporta operações manuais/administrativas de ajuste de estoque via `PUT /api/v1/inventory/reduce/{sku}`.
@@ -399,7 +406,7 @@ cd notification-service && mvn spring-boot:run
 O ecossistema conta com uma suíte abrangente de testes unitários e de integração utilizando **JUnit 5**, **Mockito**, **Spring Security Test** e **JaCoCo**:
 
 * **Cobertura de Código**: **100%** de cobertura aferida via JaCoCo em todas as camadas de negócio, controllers, listeners e repositórios.
-* **Total de Testes**: **295+ testes automatizados** com **0 falhas**.
+* **Total de Testes**: **325+ testes automatizados** (329 testes no total) com **0 falhas**.
 
 ### ⚙️ Como Executar os Testes
 

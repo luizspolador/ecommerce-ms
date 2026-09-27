@@ -195,6 +195,25 @@ class InventoryControllerTest {
 
             verifyNoInteractions(inventoryService);
         }
+
+        @Test
+        @DisplayName("Should return 409 Conflict when updated SKU already exists in another inventory")
+        void shouldReturnConflictWhenSkuAlreadyExists() throws Exception {
+            Long id = 1L;
+            InventoryRequestDTO requestDTO = new InventoryRequestDTO("EXISTING-SKU", 30);
+
+            when(inventoryService.updateInventoryById(eq(id), any(InventoryRequestDTO.class)))
+                    .thenThrow(new br.com.spolador.ecommerce.inventory_service.exception.SkuAlreadyExistsException("EXISTING-SKU"));
+
+            mockMvc.perform(put(BASE_PATH + "/{id}", id)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(requestDTO)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.title").value("Conflict"))
+                    .andExpect(jsonPath("$.Sku").value("EXISTING-SKU"));
+
+            verify(inventoryService).updateInventoryById(eq(id), any(InventoryRequestDTO.class));
+        }
     }
 
     @Nested

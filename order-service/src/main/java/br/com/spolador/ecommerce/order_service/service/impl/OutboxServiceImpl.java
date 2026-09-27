@@ -7,6 +7,8 @@ import br.com.spolador.ecommerce.order_service.service.OutboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
@@ -40,6 +42,7 @@ public class OutboxServiceImpl implements OutboxService {
     }
 
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markAsProcessed(Long id) {
         outboxRepository.findById(id).ifPresent(event -> {
             event.setProcessed(true);

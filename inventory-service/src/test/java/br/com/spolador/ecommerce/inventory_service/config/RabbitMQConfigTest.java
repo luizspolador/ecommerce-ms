@@ -24,11 +24,13 @@ class RabbitMQConfigTest {
     }
 
     @Test
-    @DisplayName("Should create durable inventoryQueue with name 'inventory-queue'")
+    @DisplayName("Should create durable inventoryQueue with name 'inventory-queue' and DLX arguments")
     void testInventoryQueue() {
         Queue queue = rabbitMQConfig.inventoryQueue();
         assertThat(queue.getName()).isEqualTo("inventory-queue");
         assertThat(queue.isDurable()).isTrue();
+        assertThat(queue.getArguments()).containsEntry("x-dead-letter-exchange", "inventory-dlx");
+        assertThat(queue.getArguments()).containsEntry("x-dead-letter-routing-key", "inventory.dead");
     }
 
     @Test

@@ -87,6 +87,11 @@ public class InventoryServiceImpl implements InventoryService {
         if(!isRegistered) {
             throw new ProductNotRegisteredException(inventoryRequestDTO.getSku());
         }
+        inventoryRepository.findBySku(inventoryRequestDTO.getSku())
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new SkuAlreadyExistsException(inventoryRequestDTO.getSku());
+                });
         inventory.setSku(inventoryRequestDTO.getSku());
         inventory.setQuantity(inventoryRequestDTO.getQuantity());
         final Inventory updatedInventory = inventoryRepository.save(inventory);

@@ -208,6 +208,7 @@ class InventoryServiceImplTest {
 
             when(inventoryRepository.findById(id)).thenReturn(Optional.of(existing));
             when(registeredProductRepository.existsBySku(updateDTO.getSku())).thenReturn(true);
+            when(inventoryRepository.findBySku(updateDTO.getSku())).thenReturn(Optional.of(existing));
             when(inventoryRepository.save(existing)).thenReturn(saved);
             when(inventoryMapper.toResponse(saved)).thenReturn(expectedResponse);
 
@@ -218,7 +219,30 @@ class InventoryServiceImplTest {
             assertThat(existing.getQuantity()).isEqualTo(80);
             verify(inventoryRepository).findById(id);
             verify(registeredProductRepository).existsBySku(updateDTO.getSku());
+            verify(inventoryRepository).findBySku(updateDTO.getSku());
             verify(inventoryRepository).save(existing);
+        }
+
+        @Test
+        @DisplayName("When updated SKU already belongs to another inventory, should throw SkuAlreadyExistsException")
+        void whenUpdatedSkuBelongsToAnotherInventory_shouldThrowSkuAlreadyExistsException() {
+            Long id = InventoryFactory.DEFAULT_ID;
+            InventoryRequestDTO updateDTO = InventoryFactory.createCustomInventoryRequestDTO("SKU-DUPLICATE", 80);
+            Inventory existing = InventoryFactory.createInventory();
+            Inventory otherWithSameSku = InventoryFactory.createCustomInventory(99L, "SKU-DUPLICATE", 50);
+
+            when(inventoryRepository.findById(id)).thenReturn(Optional.of(existing));
+            when(registeredProductRepository.existsBySku(updateDTO.getSku())).thenReturn(true);
+            when(inventoryRepository.findBySku(updateDTO.getSku())).thenReturn(Optional.of(otherWithSameSku));
+
+            assertThatThrownBy(() -> inventoryService.updateInventoryById(id, updateDTO))
+                    .isInstanceOf(br.com.spolador.ecommerce.inventory_service.exception.SkuAlreadyExistsException.class)
+                    .hasMessageContaining("already exists");
+
+            verify(inventoryRepository).findById(id);
+            verify(registeredProductRepository).existsBySku(updateDTO.getSku());
+            verify(inventoryRepository).findBySku(updateDTO.getSku());
+            verify(inventoryRepository, never()).save(any());
         }
 
         @Test

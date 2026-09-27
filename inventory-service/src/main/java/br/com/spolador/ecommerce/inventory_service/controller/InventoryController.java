@@ -61,7 +61,8 @@ public class InventoryController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Inventory record updated successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid request payload"),
-            @ApiResponse(responseCode = "404", description = "Inventory record not found")
+            @ApiResponse(responseCode = "404", description = "Inventory record not found"),
+            @ApiResponse(responseCode = "409", description = "Inventory with this SKU already exists")
     })
     @PutMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)

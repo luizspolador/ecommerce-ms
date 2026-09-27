@@ -81,7 +81,7 @@ public class OrderController {
         final Map<String, Object> realmAccess = jwt.getClaim("realm_access");
         if (realmAccess != null && realmAccess.containsKey("roles")) {
             final List<String> roles = (List<String>) realmAccess.get("roles");
-            return roles.stream().anyMatch(role -> role.equalsIgnoreCase("ADMIN"));
+            return roles.stream().anyMatch(role -> role.equalsIgnoreCase("ADMIN") || role.equalsIgnoreCase("ROLE_ADMIN"));
         }
         return false;
     }
