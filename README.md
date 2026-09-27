@@ -57,7 +57,7 @@ flowchart TD
     end
 
     subgraph OrderDomain ["🛒 Domínio: Pedidos & Orquestração"]
-        OrderService["<big><b>Order Service</b></big> (Port: 8081)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• Projeção Local: t_registered_product (Sync via EDA)<br/>• Validação Fail-Fast: Rejeita SKU não cadastrado (HTTP 400)<br/>• Ciclo de Vida: CREATED ➔ CONFIRMED / CANCELLED<br/>• Persistência do Motivo de Cancelamento (cancellationReason)<br/>• Transactional Outbox (t_outbox) + MessageRelayer<br/>• Resilience4j (Circuit Breaker & Retry com Backoff)<br/>• Proteção contra IDOR / BOLA (Validação de Ownership)<br/>• Endpoints: POST /api/v1/order | GET /api/v1/order/{id}"]
+        OrderService["<big><b>Order Service</b></big> (Port: 8081)<br/>• Java 21 LTS + Virtual Threads (Loom)<br/>• Projeção Local: t_registered_product (Sync via EDA)<br/>• Validação Fail-Fast: Rejeita SKU não cadastrado (HTTP 400)<br/>• Ciclo de Vida: CREATED ➔ CONFIRMED / CANCELLED<br/>• Persistência do Motivo de Cancelamento (cancellationReason)<br/>• Transactional Outbox (t_outbox) + MessageRelayer<br/>• Resilience4j (Circuit Breaker & Retry com Backoff)<br/>• Validação de Ownership do Pedido<br/>• Endpoints: POST /api/v1/order | GET /api/v1/order/{id}"]
         PostgresOrder[("<b>PostgreSQL 16</b><br/>order-db: 5432<br/>• t_orders / t_order_line_items<br/>• t_registered_product (Projeção CQRS)<br/>• outbox_events (Outbox Pattern)")]
     end
 
@@ -261,7 +261,7 @@ flowchart TD
   * **Rastreabilidade e Motivo de Cancelamento**: Persiste a justificativa detalhada de cancelamento (`cancellationReason`) na tabela `t_orders`, expondo-a no `OrderResponseDTO` para consulta transparente via `GET /api/v1/order/{id}`.
   * **Transactional Outbox**: Persiste pedido e evento na mesma transação atômica relacional, garantindo entrega confiável de mensagens mesmo em falhas do broker.
   * **Scheduler de Reenvio**: Processa eventos outbox pendentes em caso de indisponibilidade temporária do RabbitMQ.
-  * **Proteção contra BOLA/IDOR**: Valida que clientes comuns só acessem seus próprios pedidos (`jwt.getSubject()`), mantendo visão global apenas para `ROLE_ADMIN`.
+  * **Validação de Ownership do Pedido**: Valida que clientes comuns só acessem seus próprios pedidos (`jwt.getSubject()`), mantendo visão global apenas para `ROLE_ADMIN`.
   * **Tolerância a Falhas**: Circuit Breaker e Retry com Resilience4j.
 
 ### 7. Notification Service (`notification-service`)
