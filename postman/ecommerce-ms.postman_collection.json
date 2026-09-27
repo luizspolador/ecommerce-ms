@@ -1,0 +1,554 @@
+{
+  "info": {
+    "_postman_id": "f876d6cd-4a33-4028-bfb4-df21034f07a7",
+    "name": "ecommerce-ms",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "26935506"
+  },
+  "item": [
+    {
+      "name": "product",
+      "item": [
+        {
+          "name": "get all products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/product",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "product"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "create product",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"sku\": \"SAMSUNG-GALAXY-S24-PLUS-256GB\",\r\n    \"name\": \"Samsung Galaxy S24 Plus 256GB\",\r\n    \"description\": \"Titanium Natural\",\r\n    \"price\": 5000.00  \r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/product",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "product"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get product by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/product/6ab2b92613d943d8149878a8",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "product",
+                "6ab2b92613d943d8149878a8"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "update product",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"sku\": \"teclado-mecanico-rgb\",\r\n    \"name\": \"Teclado Mecânico RGB\",\r\n    \"description\": \"Switch Blue ABNT 2\",\r\n    \"price\": 462.00\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/product/6ab2b92613d943d8149878a8",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "product",
+                "6ab2b92613d943d8149878a8"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete product by id",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/product/6ab2b92613d943d8149878a8",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "product",
+                "6ab2b92613d943d8149878a8"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "inventory",
+      "item": [
+        {
+          "name": "get all inventories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/inventory",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "create inventory",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"sku\": \"IPHONE-15-PRO-512\",\r\n    \"quantity\": 100\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/inventory",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get inventory by id - stock available",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/inventory/IPHONE-15-PRO-512?quantity=2",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "IPHONE-15-PRO-512"
+              ],
+              "query": [
+                {
+                  "key": "quantity",
+                  "value": "2"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "update inventory - stock - by id",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"sku\": \"IPHONE-15-PRO-512\",\r\n    \"quantity\": 200\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/inventory/8",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "8"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete inventory by id",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/inventory/5",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "5"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "reduce stcok",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/inventory/reduce/IPHONE-15-PRO-256?quantity=2",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "reduce",
+                "IPHONE-15-PRO-256"
+              ],
+              "query": [
+                {
+                  "key": "quantity",
+                  "value": "2"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "order",
+      "item": [
+        {
+          "name": "create order",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"email\": \"maria@gmail.com\",\r\n    \"orderLineItemList\": [\r\n        {\r\n            \"sku\": \"IPHONE-15-PRO-256\",\r\n            \"price\": 8000.00,\r\n            \"quantity\": 2\r\n        }\r\n    ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/order",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "order"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get all orders",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/order",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "order"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get order by id",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/order/35",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "order",
+                "35"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete order by id",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{api-gateway}}/api/v1/order/3",
+              "host": [
+                "{{api-gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "order",
+                "3"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "token",
+      "item": [
+        {
+          "name": "login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login realizado com sucesso\", function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\nconst data = pm.response.json();\r\n\r\npm.environment.set(\"jwt_token\", data.access_token);\r\n\r\nconsole.log(\"JWT salvo no environment\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{client_id}}"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "{{client_secret}}"
+                },
+                {
+                  "key": "username",
+                  "value": "{{username}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloak_url}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": [
+                "{{keycloak_url}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

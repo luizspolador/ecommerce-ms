@@ -401,6 +401,34 @@ cd notification-service && mvn spring-boot:run
 
 ---
 
+## 📬 Testando a API via Postman
+
+O projeto disponibiliza na pasta [`postman/`](postman/) uma collection completa e pronta para importar:
+
+* **Collection**: [`postman/ecommerce-ms.postman_collection.json`](postman/ecommerce-ms.postman_collection.json), contendo requisições organizadas por domínio:
+  * **token**: Obtenção de JWT no Keycloak (`POST /token`) com script de teste que salva automaticamente o token retornado na variável `{{jwt_token}}`.
+  * **product**: CRUD de catálogo de produtos.
+  * **inventory**: Consultas de estoque, criação, atualização e baixa manual de SKUs.
+  * **order**: Criação e acompanhamento de pedidos de compra.
+
+> [!NOTE]
+> **Environment do Postman e Segurança de Credenciais:**  
+> Por boas práticas de segurança (**DevSecOps**), o arquivo de Environment não foi versionado no repositório para evitar a exposição de credenciais e tokens JWT reais.  
+> Você pode criar facilmente um novo **Environment** no seu Postman com as seguintes variáveis:
+>
+> | Variável | Exemplo de Valor Local | Descrição |
+> | :--- | :--- | :--- |
+> | `api-gateway` | `http://localhost:9001` | URL base do Spring Cloud Gateway |
+> | `keycloak_url` | `http://localhost:8080` | URL do servidor Keycloak |
+> | `realm` | `ecommerce-realm` | Nome do Realm configurado no Keycloak |
+> | `client_id` | `api-gateway-client` | Client ID OAuth2 |
+> | `client_secret` | `ecommerce-client-secret` | Client Secret configurado |
+> | `username` | `admin` *(ou usuário com `ROLE_USER`)* | Usuário para login |
+> | `password` | `admin` *(ou senha do usuário)* | Senha do usuário |
+> | `jwt_token` | *(deixar em branco)* | Preenchido automaticamente ao executar o endpoint de **login** |
+
+---
+
 ## 🧪 Qualidade e Testes Automatizados
 
 O ecossistema conta com uma suíte abrangente de testes unitários e de integração utilizando **JUnit 5**, **Mockito**, **Spring Security Test** e **JaCoCo**:
