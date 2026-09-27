@@ -31,7 +31,8 @@ public class ProductController {
     @Operation(summary = "Create a product", description = "Adds a new product to the catalog")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Product created successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid product payload")
+            @ApiResponse(responseCode = "400", description = "Invalid product payload"),
+            @ApiResponse(responseCode = "409", description = "Product with SKU already exists")
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -76,7 +77,8 @@ public class ProductController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Product updated successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid product payload"),
-            @ApiResponse(responseCode = "404", description = "Product not found")
+            @ApiResponse(responseCode = "404", description = "Product not found"),
+            @ApiResponse(responseCode = "409", description = "Product with SKU already exists")
     })
     @PutMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)

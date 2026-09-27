@@ -48,6 +48,28 @@ public class GlobalControllerAdvice {
         return problemDetail;
     }
 
+    @ExceptionHandler(SkuAlreadyExistsException.class)
+    public ProblemDetail handleSkuAlreadyExistsException(SkuAlreadyExistsException ex, WebRequest req) {
+        log.warn("SKU already exists. Path: {}, Message: {}", req.getDescription(false), ex.getMessage());
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problemDetail.setTitle("Conflict");
+        problemDetail.setType(URI.create("https://api.ecommerce.com/errors/conflict"));
+        problemDetail.setProperty("Timestamp", Instant.now());
+        problemDetail.setProperty("Sku", ex.getSku());
+        return problemDetail;
+    }
+
+    @ExceptionHandler(org.springframework.dao.DuplicateKeyException.class)
+    public ProblemDetail handleDuplicateKeyException(org.springframework.dao.DuplicateKeyException ex, WebRequest req) {
+        log.warn("Data integrity violation: duplicate key. Path: {}, Message: {}", req.getDescription(false), ex.getMessage());
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "Database conflict: duplicate or invalid data integrity constraint.");
+        problemDetail.setTitle("Conflict");
+        problemDetail.setType(URI.create("https://api.ecommerce.com/errors/conflict"));
+        problemDetail.setProperty("Timestamp", Instant.now());
+        return problemDetail;
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgumentException(IllegalArgumentException ex, WebRequest req) {
         log.warn("Invalid argument. Path: {}, Message: {}", req.getDescription(false), ex.getMessage());

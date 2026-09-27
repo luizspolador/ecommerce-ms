@@ -3,6 +3,7 @@ package br.com.spolador.ecommerce.product_service.service.impl;
 import br.com.spolador.ecommerce.product_service.dto.ProductRequestDTO;
 import br.com.spolador.ecommerce.product_service.dto.ProductResponseDTO;
 import br.com.spolador.ecommerce.product_service.exception.ResourceNotFoundException;
+import br.com.spolador.ecommerce.product_service.exception.SkuAlreadyExistsException;
 import br.com.spolador.ecommerce.product_service.factory.ProductFactory;
 import br.com.spolador.ecommerce.product_service.mapper.ProductMapper;
 import br.com.spolador.ecommerce.product_service.model.Product;
@@ -54,6 +55,7 @@ class ProductServiceImplTest {
             Product savedProduct = ProductFactory.createProduct();
             ProductResponseDTO expectedResponseDTO = ProductFactory.createProductResponseDTO();
 
+            when(productRepository.existsBySku(requestDTO.sku())).thenReturn(false);
             when(productMapper.toProduct(requestDTO)).thenReturn(productToSave);
             when(productRepository.save(productToSave)).thenReturn(savedProduct);
             when(productMapper.toProductResponseDTO(savedProduct)).thenReturn(expectedResponseDTO);
@@ -69,11 +71,30 @@ class ProductServiceImplTest {
             assertThat(actualResponseDTO.description()).isEqualTo(expectedResponseDTO.description());
             assertThat(actualResponseDTO.price()).isEqualTo(expectedResponseDTO.price());
 
+            verify(productRepository).existsBySku(requestDTO.sku());
             verify(productMapper).toProduct(requestDTO);
             verify(productRepository).save(productToSave);
             verify(productMapper).toProductResponseDTO(savedProduct);
             verify(rabbitTemplate).convertAndSend(eq("product-events"), eq("product.created"), any(br.com.spolador.ecommerce.product_service.event.ProductCreatedEvent.class));
             verifyNoMoreInteractions(productRepository, productMapper, rabbitTemplate);
+        }
+
+        @Test
+        @DisplayName("Given existing SKU, should throw SkuAlreadyExistsException and not save")
+        void givenExistingSku_whenCreateProduct_shouldThrowSkuAlreadyExistsException() {
+            // Arrange
+            ProductRequestDTO requestDTO = ProductFactory.createProductRequestDTO();
+            when(productRepository.existsBySku(requestDTO.sku())).thenReturn(true);
+
+            // Act & Assert
+            assertThatThrownBy(() -> productService.createProduct(requestDTO))
+                    .isInstanceOf(SkuAlreadyExistsException.class)
+                    .hasMessage("The product with SKU 'PROD-XYZ-001' already exists");
+
+            verify(productRepository).existsBySku(requestDTO.sku());
+            verify(productRepository, never()).save(any());
+            verifyNoInteractions(productMapper, rabbitTemplate);
+            verifyNoMoreInteractions(productRepository);
         }
     }
 
@@ -186,6 +207,7 @@ class ProductServiceImplTest {
             ProductResponseDTO updatedResponseDTO = ProductFactory.createCustomProductResponseDTO(id, "Updated Smartphone", "Updated Description", BigDecimal.valueOf(1799.99));
 
             when(productRepository.findById(id)).thenReturn(Optional.of(existingProduct));
+            when(productRepository.findBySku(updateRequest.sku())).thenReturn(Optional.of(existingProduct));
             doNothing().when(productMapper).updateProductFromRequest(updateRequest, existingProduct);
             when(productRepository.save(existingProduct)).thenReturn(updatedProduct);
             when(productMapper.toProductResponseDTO(updatedProduct)).thenReturn(updatedResponseDTO);
@@ -201,10 +223,35 @@ class ProductServiceImplTest {
             assertThat(result.price()).isEqualTo(BigDecimal.valueOf(1799.99));
 
             verify(productRepository).findById(id);
+            verify(productRepository).findBySku(updateRequest.sku());
             verify(productMapper).updateProductFromRequest(updateRequest, existingProduct);
             verify(productRepository).save(existingProduct);
             verify(productMapper).toProductResponseDTO(updatedProduct);
             verifyNoMoreInteractions(productRepository, productMapper);
+        }
+
+        @Test
+        @DisplayName("Given existing SKU belonging to another product, should throw SkuAlreadyExistsException and not save")
+        void givenExistingSkuBelongingToAnotherProduct_whenUpdateProduct_shouldThrowSkuAlreadyExistsException() {
+            // Arrange
+            String id = ProductFactory.DEFAULT_ID;
+            Product existingProduct = ProductFactory.createProduct();
+            Product anotherProduct = ProductFactory.createCustomProduct("other-id", "Other Product", "Other Desc", BigDecimal.valueOf(100.00));
+            ProductRequestDTO updateRequest = ProductFactory.createProductRequestDTO();
+
+            when(productRepository.findById(id)).thenReturn(Optional.of(existingProduct));
+            when(productRepository.findBySku(updateRequest.sku())).thenReturn(Optional.of(anotherProduct));
+
+            // Act & Assert
+            assertThatThrownBy(() -> productService.updateProduct(id, updateRequest))
+                    .isInstanceOf(SkuAlreadyExistsException.class)
+                    .hasMessage("The product with SKU 'PROD-XYZ-001' already exists");
+
+            verify(productRepository).findById(id);
+            verify(productRepository).findBySku(updateRequest.sku());
+            verify(productRepository, never()).save(any());
+            verifyNoInteractions(productMapper);
+            verifyNoMoreInteractions(productRepository);
         }
 
         @Test

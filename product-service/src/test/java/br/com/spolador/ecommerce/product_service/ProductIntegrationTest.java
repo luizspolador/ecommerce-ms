@@ -145,6 +145,26 @@ class ProductIntegrationTest {
 
             verify(productRepository, never()).save(any(Product.class));
         }
+
+        @Test
+        @DisplayName("Should return 409 Conflict when product with identical SKU already exists")
+        void givenExistingSku_whenCreateProduct_thenReturns409() throws Exception {
+            ProductRequestDTO requestDTO = ProductFactory.createProductRequestDTO();
+
+            when(productRepository.existsBySku(requestDTO.sku())).thenReturn(true);
+
+            mockMvc.perform(post(BASE_PATH)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(requestDTO)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status").value(409))
+                    .andExpect(jsonPath("$.title").value("Conflict"))
+                    .andExpect(jsonPath("$.detail").value("The product with SKU '" + requestDTO.sku() + "' already exists"))
+                    .andExpect(jsonPath("$.Sku").value(requestDTO.sku()));
+
+            verify(productRepository, never()).save(any(Product.class));
+        }
     }
 
     @Nested
@@ -264,6 +284,30 @@ class ProductIntegrationTest {
                     .andExpect(jsonPath("$.detail").value("Product not found with id: 'non-existing-id'"));
 
             verify(productRepository).findById("non-existing-id");
+            verify(productRepository, never()).save(any(Product.class));
+        }
+
+        @Test
+        @DisplayName("Should return 409 Conflict when updating product to SKU of another product")
+        void givenExistingSkuBelongingToAnotherProduct_whenUpdateProduct_thenReturns409() throws Exception {
+            Product existingProduct = ProductFactory.createProduct();
+            Product anotherProduct = ProductFactory.createCustomProduct("other-id", "Other", "Other", BigDecimal.TEN);
+            ProductRequestDTO updateRequest = ProductFactory.createProductRequestDTO();
+
+            when(productRepository.findById(ProductFactory.DEFAULT_ID)).thenReturn(Optional.of(existingProduct));
+            when(productRepository.findBySku(updateRequest.sku())).thenReturn(Optional.of(anotherProduct));
+
+            mockMvc.perform(put(BASE_PATH + "/{id}", ProductFactory.DEFAULT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(updateRequest)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status").value(409))
+                    .andExpect(jsonPath("$.title").value("Conflict"))
+                    .andExpect(jsonPath("$.detail").value("The product with SKU '" + updateRequest.sku() + "' already exists"))
+                    .andExpect(jsonPath("$.Sku").value(updateRequest.sku()));
+
+            verify(productRepository).findById(ProductFactory.DEFAULT_ID);
             verify(productRepository, never()).save(any(Product.class));
         }
     }

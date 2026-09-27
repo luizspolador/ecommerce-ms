@@ -4,6 +4,7 @@ import br.com.spolador.ecommerce.product_service.dto.ProductRequestDTO;
 import br.com.spolador.ecommerce.product_service.dto.ProductResponseDTO;
 import br.com.spolador.ecommerce.product_service.event.ProductCreatedEvent;
 import br.com.spolador.ecommerce.product_service.exception.ResourceNotFoundException;
+import br.com.spolador.ecommerce.product_service.exception.SkuAlreadyExistsException;
 import br.com.spolador.ecommerce.product_service.mapper.ProductMapper;
 import br.com.spolador.ecommerce.product_service.model.Product;
 import br.com.spolador.ecommerce.product_service.repository.ProductRepository;
@@ -27,6 +28,9 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductResponseDTO createProduct(final ProductRequestDTO requestDTO) {
+        if (productRepository.existsBySku(requestDTO.sku())) {
+            throw new SkuAlreadyExistsException(requestDTO.sku());
+        }
         final Product product = productMapper.toProduct(requestDTO);
         if (product.getCreatedAt() == null) {
             product.setCreatedAt(java.time.LocalDateTime.now());
@@ -70,6 +74,11 @@ public class ProductServiceImpl implements ProductService {
         final Product product = productRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Product", "id", id)
         );
+        productRepository.findBySku(productRequest.sku())
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new SkuAlreadyExistsException(productRequest.sku());
+                });
         productMapper.updateProductFromRequest(productRequest, product);
         product.setUpdatedAt(java.time.LocalDateTime.now());
         final Product updatedProduct = productRepository.save(product);

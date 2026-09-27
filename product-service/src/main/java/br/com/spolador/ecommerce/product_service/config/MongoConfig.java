@@ -37,6 +37,11 @@ public class MongoConfig extends AbstractMongoClientConfiguration {
     }
 
     @Override
+    public boolean autoIndexCreation() {
+        return true;
+    }
+
+    @Override
     @Bean
     public MongoClient mongoClient() {
         MongoCredential credential = MongoCredential.createCredential(

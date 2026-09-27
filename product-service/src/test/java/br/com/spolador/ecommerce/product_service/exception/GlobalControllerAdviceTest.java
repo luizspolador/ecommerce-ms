@@ -128,4 +128,43 @@ class GlobalControllerAdviceTest {
         assertThat(problemDetail.getType()).isEqualTo(URI.create("https://api.ecommerce.com/errors/invalid-argument"));
         assertThat(problemDetail.getProperties()).containsKey("Timestamp");
     }
+
+    @Test
+    @DisplayName("handleSkuAlreadyExistsException should return 409 ProblemDetail with Sku property")
+    void handleSkuAlreadyExistsException_shouldReturnConflictProblemDetail() {
+        // Arrange
+        SkuAlreadyExistsException ex = new SkuAlreadyExistsException("PROD-XYZ-001");
+        when(webRequest.getDescription(false)).thenReturn("uri=/api/v1/product");
+
+        // Act
+        ProblemDetail problemDetail = advice.handleSkuAlreadyExistsException(ex, webRequest);
+
+        // Assert
+        assertThat(problemDetail).isNotNull();
+        assertThat(problemDetail.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(problemDetail.getTitle()).isEqualTo("Conflict");
+        assertThat(problemDetail.getDetail()).isEqualTo("The product with SKU 'PROD-XYZ-001' already exists");
+        assertThat(problemDetail.getType()).isEqualTo(URI.create("https://api.ecommerce.com/errors/conflict"));
+        assertThat(problemDetail.getProperties()).containsEntry("Sku", "PROD-XYZ-001");
+        assertThat(problemDetail.getProperties()).containsKey("Timestamp");
+    }
+
+    @Test
+    @DisplayName("handleDuplicateKeyException should return 409 ProblemDetail")
+    void handleDuplicateKeyException_shouldReturnConflictProblemDetail() {
+        // Arrange
+        org.springframework.dao.DuplicateKeyException ex = new org.springframework.dao.DuplicateKeyException("Duplicate key");
+        when(webRequest.getDescription(false)).thenReturn("uri=/api/v1/product");
+
+        // Act
+        ProblemDetail problemDetail = advice.handleDuplicateKeyException(ex, webRequest);
+
+        // Assert
+        assertThat(problemDetail).isNotNull();
+        assertThat(problemDetail.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(problemDetail.getTitle()).isEqualTo("Conflict");
+        assertThat(problemDetail.getDetail()).isEqualTo("Database conflict: duplicate or invalid data integrity constraint.");
+        assertThat(problemDetail.getType()).isEqualTo(URI.create("https://api.ecommerce.com/errors/conflict"));
+        assertThat(problemDetail.getProperties()).containsKey("Timestamp");
+    }
 }

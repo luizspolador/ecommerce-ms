@@ -4,6 +4,7 @@ import br.com.spolador.ecommerce.product_service.dto.ProductRequestDTO;
 import br.com.spolador.ecommerce.product_service.dto.ProductResponseDTO;
 import br.com.spolador.ecommerce.product_service.exception.GlobalControllerAdvice;
 import br.com.spolador.ecommerce.product_service.exception.ResourceNotFoundException;
+import br.com.spolador.ecommerce.product_service.exception.SkuAlreadyExistsException;
 import br.com.spolador.ecommerce.product_service.factory.ProductFactory;
 import br.com.spolador.ecommerce.product_service.service.ProductService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -78,6 +79,27 @@ class ProductControllerTest {
                     .andExpect(jsonPath("$.name", is(responseDTO.name())))
                     .andExpect(jsonPath("$.description", is(responseDTO.description())))
                     .andExpect(jsonPath("$.price", is(responseDTO.price().doubleValue())));
+
+            verify(productService).createProduct(requestDTO);
+        }
+
+        @Test
+        @DisplayName("Given existing SKU, should return 409 Conflict with error message")
+        void givenExistingSku_whenCreateProduct_shouldReturn409Conflict() throws Exception {
+            // Arrange
+            ProductRequestDTO requestDTO = ProductFactory.createProductRequestDTO();
+            when(productService.createProduct(any(ProductRequestDTO.class)))
+                    .thenThrow(new SkuAlreadyExistsException(requestDTO.sku()));
+
+            // Act & Assert
+            mockMvc.perform(post(BASE_PATH)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(requestDTO)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status", is(409)))
+                    .andExpect(jsonPath("$.title", is("Conflict")))
+                    .andExpect(jsonPath("$.detail", is("The product with SKU '" + requestDTO.sku() + "' already exists")))
+                    .andExpect(jsonPath("$.Sku", is(requestDTO.sku())));
 
             verify(productService).createProduct(requestDTO);
         }
@@ -264,6 +286,28 @@ class ProductControllerTest {
                             .content(objectMapper.writeValueAsString(requestDTO)))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.title", is("Resource not found.")));
+
+            verify(productService).updateProduct(id, requestDTO);
+        }
+
+        @Test
+        @DisplayName("Given existing SKU belonging to another product, should return 409 Conflict")
+        void givenExistingSkuBelongingToAnotherProduct_whenUpdateProduct_shouldReturn409Conflict() throws Exception {
+            // Arrange
+            String id = ProductFactory.DEFAULT_ID;
+            ProductRequestDTO requestDTO = ProductFactory.createProductRequestDTO();
+            when(productService.updateProduct(eq(id), any(ProductRequestDTO.class)))
+                    .thenThrow(new SkuAlreadyExistsException(requestDTO.sku()));
+
+            // Act & Assert
+            mockMvc.perform(put(BASE_PATH + "/{id}", id)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(requestDTO)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status", is(409)))
+                    .andExpect(jsonPath("$.title", is("Conflict")))
+                    .andExpect(jsonPath("$.detail", is("The product with SKU '" + requestDTO.sku() + "' already exists")))
+                    .andExpect(jsonPath("$.Sku", is(requestDTO.sku())));
 
             verify(productService).updateProduct(id, requestDTO);
         }
