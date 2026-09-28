@@ -317,6 +317,29 @@ POST /api/v1/product ──► [Product Service] ──► MongoDB (product-db)
 * **Defesa em Profundidade**: O Gateway aplica segurança perimetral e repassa as credenciais (*Token Relay*). Cada microsserviço atua de forma independente como OAuth2 Resource Server.
 * **Mapeamento de Roles**: O `JwtAuthenticationConverter` extrai as roles de `realm_access.roles` do Keycloak e as injeta no contexto de segurança como `ROLE_ADMIN` e `ROLE_USER`.
 
+### ⚙️ Configurando o Realm no Keycloak
+
+Após iniciar os containers com `docker compose up -d`, acesse o console do Keycloak em [http://localhost:8080](http://localhost:8080) com o usuário `admin` e senha `admin` para configurar o realm e as credenciais de teste:
+
+1. **Criar Realm**:
+   * Nome: `ecommerce-realm`
+2. **Criar Client**:
+   * Client ID: `api-gateway-client`
+   * Client Authentication: **ON** (Client confidencial)
+   * Authentication Flow: Marcar **Standard Flow** e **Direct Access Grants** (para login via Postman/senha)
+   * Valid Redirect URIs: `*` ou `http://localhost:9001/*`
+   * Credentials (Client Secret): `ecommerce-client-secret` (aba *Credentials*)
+3. **Criar Realm Roles**:
+   * `ADMIN` (mapeada no gateway como `ROLE_ADMIN` para catálogo e estoque)
+   * `USER` (mapeada no gateway como `ROLE_USER` para realização de pedidos)
+4. **Criar Usuários de Teste**:
+   * **Administrador**:
+     * Username: `admin` | Senha: `admin` (Temporary: **Off**)
+     * Role Mapping: atribuir a role `ADMIN`
+   * **Cliente Comum**:
+     * Username: `user` | Senha: `user` (Temporary: **Off**)
+     * Role Mapping: atribuir a role `USER`
+
 ---
 
 ## 📚 Documentação das APIs (Swagger UI) & Portais do Ecossistema
@@ -484,22 +507,26 @@ Caso **não** tenha o Maven instalado no computador, utilize o **Maven Wrapper**
 Após a execução do comando `jacoco:report`, o relatório interativo e detalhado é gerado no diretório `target/site/jacoco/index.html` do respectivo serviço. Você pode abri-lo de três formas:
 
 #### A. Diretamente no Navegador (Chrome, Edge, Firefox, etc.)
-Copie e cole a URI direta com o protocolo `file:///` na barra de endereços do seu navegador:
+Abra o arquivo HTML gerado na pasta de cada serviço a partir da raiz do projeto:
 * **Inventory Service**:
   ```text
-  file:///C:/microservices-ecommerce/inventory-service/target/site/jacoco/index.html
+  ./inventory-service/target/site/jacoco/index.html
   ```
 * **Order Service**:
   ```text
-  file:///C:/microservices-ecommerce/order-service/target/site/jacoco/index.html
+  ./order-service/target/site/jacoco/index.html
   ```
 * **Product Service**:
   ```text
-  file:///C:/microservices-ecommerce/product-service/target/site/jacoco/index.html
+  ./product-service/target/site/jacoco/index.html
+  ```
+* **Notification Service**:
+  ```text
+  ./notification-service/target/site/jacoco/index.html
   ```
 * **API Gateway**:
   ```text
-  file:///C:/microservices-ecommerce/api-gateway/target/site/jacoco/index.html
+  ./api-gateway/target/site/jacoco/index.html
   ```
 
 #### B. Pelo PowerShell
@@ -508,16 +535,16 @@ Estando no diretório do microsserviço:
 # Abre automaticamente o relatório no navegador padrão:
 Start-Process "target\site\jacoco\index.html"
 
-# Ou informando a URI direta completa:
-Start-Process "file:///C:/microservices-ecommerce/inventory-service/target/site/jacoco/index.html"
+# Ou a partir da raiz do repositório:
+Start-Process "inventory-service\target\site\jacoco\index.html"
 ```
 
-#### C. Pelo Git Bash
+#### C. Pelo Git Bash / Terminal
 Estando no diretório do microsserviço:
 ```bash
-# Abre automaticamente no navegador padrão:
+# Windows (Git Bash):
 explorer "target/site/jacoco/index.html"
 
-# Ou via comando start:
-start "target/site/jacoco/index.html"
+# Ou a partir da raiz do repositório:
+explorer "inventory-service/target/site/jacoco/index.html"
 ```
